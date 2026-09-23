@@ -1,0 +1,51 @@
+{
+  "label": "Printful events",
+  "description": "Signature-verified inbound Printful webhook envelopes. The webhook route only persists here and returns 200; all enrichment happens off the created event.",
+  "name_pattern": "{type}",
+  "fields": {
+    "dedupe_key": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "description": "type + the order or shipment id + occurred_at. Unique — Printful retries at 1, 4, 16, 64, 256 and 1024 minutes and sends no delivery id, so this is how a replay is dropped"
+    },
+    "type": {
+      "type": "string",
+      "required": true,
+      "description": "Printful event type (shipment_sent, order_updated, order_failed, catalog_price_changed, ...)"
+    },
+    "occurred_at": {
+      "type": "date",
+      "description": "occurred_at from the Printful envelope, not receipt time"
+    },
+    "store_id": {
+      "type": "string",
+      "description": "Printful store the event came from"
+    },
+    "retries": {
+      "type": "int",
+      "description": "Delivery attempt count reported by Printful"
+    },
+    "data": {
+      "type": "object",
+      "description": "Verified event payload, stored verbatim so an event can be replayed after a handler fix"
+    },
+    "processed": {
+      "type": "bool",
+      "default": false,
+      "description": "Set once the handler finished. Unprocessed rows are what an operator replays"
+    },
+    "process_error": {
+      "type": "string",
+      "description": "Why the handler could not process this event"
+    }
+  },
+  "events": {
+    "types": [
+      {
+        "id": "created",
+        "description": "A verified Printful event was received and is ready to handle"
+      }
+    ]
+  }
+}

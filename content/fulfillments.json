@@ -1,0 +1,180 @@
+{
+  "collection": "fulfillments",
+  "label": "Printful fulfillments",
+  "description": "Operator view of the Printful submission jobs. To retry a stuck or failed job, set its state back to Pending and clear the next attempt date.",
+  "fields": [
+    {
+      "id": "order",
+      "label": "Order",
+      "type": "lookup",
+      "model": "orders",
+      "key": "order_id",
+      "readonly": true
+    },
+    {
+      "id": "state",
+      "label": "State",
+      "type": "select",
+      "admin_span": 2,
+      "description": "Set back to Pending to retry. Confirmed means Printful has already been charged \u2014 do not reset it",
+      "options": [
+        {
+          "label": "Pending",
+          "value": "pending"
+        },
+        {
+          "label": "Created",
+          "value": "created"
+        },
+        {
+          "label": "Calculating",
+          "value": "calculating"
+        },
+        {
+          "label": "Confirmed",
+          "value": "confirmed"
+        },
+        {
+          "label": "Failed",
+          "value": "failed"
+        }
+      ]
+    },
+    {
+      "id": "printful_order_id",
+      "label": "Printful order ID",
+      "type": "text",
+      "readonly": true,
+      "admin_span": 2
+    },
+    {
+      "id": "external_id",
+      "label": "External ID",
+      "type": "text",
+      "readonly": true,
+      "admin_span": 2,
+      "description": "Swell order id sent to Printful, used to re-read an order instead of creating a second one"
+    },
+    {
+      "id": "attempts",
+      "label": "Attempts",
+      "type": "integer",
+      "readonly": true,
+      "admin_span": 1
+    },
+    {
+      "id": "date_next_attempt",
+      "label": "Next attempt",
+      "type": "datetime",
+      "admin_span": 2,
+      "description": "Writing this re-arms the job. Clear it and set state to Pending to run immediately"
+    },
+    {
+      "id": "last_error",
+      "label": "Last error",
+      "type": "textarea",
+      "readonly": true
+    }
+  ],
+  "views": [
+    {
+      "id": "list",
+      "nav": {
+        "parent": "orders",
+        "label": "Printful fulfillments"
+      },
+      "query": {
+        "sort": "date_next_attempt"
+      },
+      "tabs": [
+        {
+          "id": "failed",
+          "label": "Failed",
+          "query": {
+            "state": "failed"
+          }
+        },
+        {
+          "id": "in_flight",
+          "label": "In flight",
+          "query": {
+            "state": {
+              "$in": [
+                "pending",
+                "created",
+                "calculating"
+              ]
+            }
+          }
+        },
+        {
+          "id": "confirmed",
+          "label": "Confirmed",
+          "query": {
+            "state": "confirmed"
+          }
+        }
+      ],
+      "fields": [
+        {
+          "id": "order"
+        },
+        {
+          "id": "state"
+        },
+        {
+          "id": "printful_order_id"
+        },
+        {
+          "id": "attempts"
+        },
+        {
+          "id": "date_next_attempt",
+          "label": "Next attempt"
+        },
+        {
+          "id": "last_error",
+          "truncated": 120
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "title": "Fulfillment {{ external_id }}",
+      "subtitle": "{{ state }}",
+      "fields": [
+        {
+          "id": "order"
+        },
+        {
+          "type": "field_row",
+          "fields": [
+            {
+              "id": "state"
+            },
+            {
+              "id": "printful_order_id"
+            }
+          ]
+        },
+        {
+          "type": "field_row",
+          "fields": [
+            {
+              "id": "attempts"
+            },
+            {
+              "id": "date_next_attempt"
+            }
+          ]
+        },
+        {
+          "id": "external_id"
+        },
+        {
+          "id": "last_error"
+        }
+      ]
+    }
+  ]
+}

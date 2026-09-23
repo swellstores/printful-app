@@ -1,0 +1,66 @@
+{
+  "label": "Printful fulfillments",
+  "description": "Durable job that carries one paid Swell order through Printful create, cost calculation and confirmation. One row per order. order_id is unique, which is a read-then-write check rather than a database index — it collapses ordinary duplicate deliveries but leaves a residual race under true concurrency (see OPEN-QUESTIONS.md item 1).",
+  "name_pattern": "{external_id}",
+  "fields": {
+    "order_id": {
+      "type": "objectid",
+      "required": true,
+      "unique": true,
+      "description": "Swell order being fulfilled. Unique — a duplicate order.paid delivery loses the insert and exits. The server enforces this by reading for a match before inserting, so two inserts racing inside that window can both succeed; the durable guard against submitting the same order to Printful twice would be Printful enforcing external_id uniqueness, which is unverified"
+    },
+    "order": {
+      "type": "link",
+      "model": "orders",
+      "key": "order_id"
+    },
+    "external_id": {
+      "type": "string",
+      "required": true,
+      "description": "Swell order id sent to Printful as external_id, so a created order can be re-read at /v2/orders/@{external_id} instead of being created again"
+    },
+    "state": {
+      "type": "string",
+      "enum": ["pending", "created", "calculating", "confirmed", "failed"],
+      "default": "pending",
+      "required": true,
+      "description": "pending: claimed, nothing sent. created: draft exists at Printful. calculating: waiting on Printful costs. confirmed: submitted for production — this is the charge point. failed: needs an operator"
+    },
+    "printful_order_id": {
+      "type": "string",
+      "description": "Set once the Printful draft exists or has been adopted"
+    },
+    "attempts": {
+      "type": "int",
+      "default": 0,
+      "description": "Transport failures so far. The advance function backs off exponentially and gives up at 8"
+    },
+    "date_next_attempt": {
+      "type": "date",
+      "description": "When to advance this job next. The advance function schedules off this field, so writing it re-arms the job"
+    },
+    "last_error": {
+      "type": "string",
+      "description": "Most recent Printful or transport error"
+    }
+  },
+  "events": {
+    "types": [
+      {
+        "id": "created",
+        "description": "A paid order was claimed for fulfillment"
+      },
+      {
+        "id": "updated",
+        "description": "The job advanced or was rescheduled"
+      },
+      {
+        "id": "failed",
+        "description": "The job gave up or Printful rejected the order",
+        "conditions": {
+          "$formula": "and($record.state != 'failed', state == 'failed')"
+        }
+      }
+    ]
+  }
+}

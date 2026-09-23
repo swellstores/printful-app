@@ -1,0 +1,13 @@
+{
+  "description": "Printful shipment identifiers mirrored onto the Swell shipment. Written by the app under $app.printful.",
+  "fields": {
+    "shipment_id": {
+      "type": "string",
+      "description": "Id of the Printful shipment this Swell shipment was created from. Printful splits an order across shipments, so this is what ties one Swell shipment back to one Printful shipment"
+    },
+    "tracking_url": {
+      "type": "string",
+      "description": "Tracking link as Printful reported it. Kept rather than rebuilt from the tracking code, because the carrier is Printful's choice and its URL format is not ours to guess"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "label": "Printful catalog items",
+  "description": "One row per Printful catalog variant, with the costs needed to price and submit it. Populated by the catalog sync.",
+  "name_pattern": "{catalog_variant_id} {size} {color}",
+  "fields": {
+    "catalog_variant_id": {
+      "type": "int",
+      "required": true,
+      "unique": true,
+      "description": "Printful catalog variant id, and this row's identity. Marked unique, which in Swell is a read-then-write validation rather than a database index — it will not stop two concurrent writes creating the same variant twice."
+    },
+    "catalog_product_id": {
+      "type": "int",
+      "required": true,
+      "description": "Printful catalog product this variant belongs to"
+    },
+    "variant_id": {
+      "type": "objectid",
+      "description": "Swell product variant this catalog variant is sold as"
+    },
+    "variant": {
+      "type": "link",
+      "model": "products:variants",
+      "key": "variant_id"
+    },
+    "size": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string"
+    },
+    "base_cost_by_technique": {
+      "type": "object",
+      "description": "Printful base price keyed by technique id. The base price already includes one placement — subtract it before adding placement prices or the first placement is counted twice"
+    },
+    "placement_prices": {
+      "type": "object",
+      "description": "Additional price keyed by placement id, for placements beyond the one included in the base cost"
+    },
+    "currency": {
+      "type": "string",
+      "format": "currency-code",
+      "description": "Currency the costs above are quoted in"
+    },
+    "stale": {
+      "type": "bool",
+      "default": false,
+      "description": "Set by the catalog_price_changed and catalog_stock_updated webhooks. The next sync run refetches these rows first"
+    },
+    "date_synced": {
+      "type": "date",
+      "description": "When this row last matched Printful"
+    }
+  }
+}

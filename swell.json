@@ -1,0 +1,21 @@
+{
+  "description": "Print-on-demand fulfillment: shipping rates, orders and tracking",
+  "id": "printful",
+  "name": "Printful",
+  "support_email": "support@swell.is",
+  "type": "integration",
+  "version": "1.0.0",
+  "permissions": [],
+  "extensions": [
+    {
+      "id": "printful",
+      "type": "shipping",
+      "carrier": "printful",
+      "name": "Printful",
+      "description": "Live Printful shipping rates for print-on-demand items, with a configurable flat-rate fallback."
+    }
+  ],
+  "support_url": "https://www.printful.com/contact",
+  "documentation_url": "https://developers.printful.com/docs/",
+  "price": 0
+}

@@ -1,0 +1,126 @@
+{
+  "collection": "orders",
+  "fields": [
+    {
+      "id": "printful_order_id",
+      "label": "Printful order ID",
+      "type": "text",
+      "readonly": true,
+      "admin_span": 2,
+      "description": "Set when the order is created at Printful"
+    },
+    {
+      "id": "printful_status",
+      "label": "Printful status",
+      "type": "text",
+      "readonly": true,
+      "admin_span": 2,
+      "description": "Latest status reported by Printful"
+    },
+    {
+      "id": "submit_state",
+      "label": "Submission state",
+      "type": "text",
+      "readonly": true,
+      "admin_span": 2,
+      "description": "Where this order is in the Printful submission sequence"
+    },
+    {
+      "id": "confirmed_at",
+      "label": "Confirmed",
+      "type": "datetime",
+      "readonly": true,
+      "admin_span": 2,
+      "description": "When the order was confirmed for production and charged"
+    },
+    {
+      "id": "dashboard_url",
+      "label": "View in Printful",
+      "type": "url",
+      "readonly": true,
+      "description": "Open this order in the Printful dashboard"
+    },
+    {
+      "id": "last_error",
+      "label": "Last Printful error",
+      "type": "textarea",
+      "readonly": true,
+      "description": "Printful rejects print files after confirmation, so an order can fail here well after it was placed"
+    }
+  ],
+  "views": [
+    {
+      "id": "list",
+      "tabs": [
+        {
+          "id": "printful_failed",
+          "label": "Printful failed",
+          "query": {
+            "submit_state": "failed"
+          },
+          "fields": [
+            {
+              "id": "submit_state"
+            },
+            {
+              "id": "last_error",
+              "truncated": 120
+            }
+          ]
+        }
+      ],
+      "fields": [
+        {
+          "id": "printful_status"
+        },
+        {
+          "id": "submit_state"
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "tabs": [
+        {
+          "id": "printful",
+          "label": "Printful",
+          "fields": [
+            {
+              "type": "field_row",
+              "fields": [
+                {
+                  "id": "printful_order_id"
+                },
+                {
+                  "id": "printful_status"
+                }
+              ]
+            },
+            {
+              "type": "field_row",
+              "fields": [
+                {
+                  "id": "submit_state"
+                },
+                {
+                  "id": "confirmed_at"
+                }
+              ]
+            },
+            {
+              "id": "dashboard_url"
+            },
+            {
+              "id": "last_error",
+              "conditions": {
+                "last_error": {
+                  "$ne": null
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

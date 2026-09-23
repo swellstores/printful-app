@@ -1,0 +1,30 @@
+{
+  "description": "Printful fulfillment state mirrored onto the order for merchant visibility. Written by the app under $app.printful.",
+  "fields": {
+    "printful_order_id": {
+      "type": "string",
+      "description": "Id of the Printful order created for this Swell order"
+    },
+    "printful_status": {
+      "type": "string",
+      "description": "Latest status reported by Printful (draft, pending, fulfilled, canceled, failed)"
+    },
+    "dashboard_url": {
+      "type": "string",
+      "description": "Deep link to this order in the Printful dashboard"
+    },
+    "confirmed_at": {
+      "type": "date",
+      "description": "When the order was confirmed with Printful. Confirmation is the charge point"
+    },
+    "submit_state": {
+      "type": "string",
+      "enum": ["pending", "created", "calculating", "confirmed", "failed"],
+      "description": "Mirror of the fulfillment job state, denormalized so orders can be filtered in admin"
+    },
+    "last_error": {
+      "type": "string",
+      "description": "Most recent Printful error for this order"
+    }
+  }
+}

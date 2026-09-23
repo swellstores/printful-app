@@ -1,0 +1,24 @@
+{
+  "collection": "fulfillments",
+  "label": "Printful order failed",
+  "description": "Notify store admins when a Printful fulfillment job gives up or Printful rejects the order",
+  "method": "email",
+  "admin": true,
+  "event": "failed",
+  "subject": "Printful could not fulfill order {{ order.number }}",
+  "query": {
+    "expand": ["order"]
+  },
+  "sample": {
+    "order_id": "5f8f8c1b2c3d4e5f60718293",
+    "external_id": "5f8f8c1b2c3d4e5f60718293",
+    "state": "failed",
+    "attempts": 8,
+    "printful_order_id": "9876543",
+    "last_error": "Print file could not be validated: image resolution is below the minimum for this placement.",
+    "order": {
+      "id": "5f8f8c1b2c3d4e5f60718293",
+      "number": "100042"
+    }
+  }
+}

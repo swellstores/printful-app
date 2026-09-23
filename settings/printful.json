@@ -1,0 +1,73 @@
+{
+  "label": "Printful",
+  "description": "1. In Printful, open Settings → Developers and create a private token with the 'orders', 'catalog' and 'webhooks' scopes. 2. Paste it below and save. 3. Enable the carrier in Settings → Shipping → Printful, then click Save changes — rates do not dispatch until you do. 4. Leave Live fulfillment off until you have inspected a draft order in the Printful dashboard.",
+  "fields": [
+    {
+      "id": "api_token",
+      "label": "Printful API token",
+      "type": "text",
+      "description": "Private token from Printful Settings → Developers. Needs the 'orders', 'catalog' and 'webhooks' scopes. Use a separate token for your test environment."
+    },
+    {
+      "id": "store_id",
+      "label": "Printful store ID",
+      "type": "text",
+      "description": "Only needed for account-level tokens that can see more than one Printful store. Leave empty for a store-level token."
+    },
+    {
+      "id": "live_fulfillment",
+      "label": "Live fulfillment",
+      "type": "toggle",
+      "default": false,
+      "description": "When off, paid orders are submitted to Printful as drafts and never confirmed, so nothing is printed or charged. Turn this on only after a draft order looks correct in the Printful dashboard."
+    },
+    {
+      "id": "fallback_rate",
+      "label": "Fallback shipping rate",
+      "type": "currency",
+      "localized": true,
+      "description": "Flat rate offered when Printful is slow, rate-limited or unreachable. Leave empty to offer no Printful service at all when the quote fails."
+    },
+    {
+      "id": "fallback_service_name",
+      "label": "Fallback service name",
+      "type": "text",
+      "default": "Standard shipping",
+      "description": "Name shown at checkout for the fallback rate."
+    },
+    {
+      "id": "quote_cache_ttl",
+      "label": "Quote cache lifetime",
+      "type": "integer",
+      "default": 300,
+      "min": 0,
+      "max": 3600,
+      "unit": "seconds",
+      "description": "How long a shipping quote is reused for the same destination and cart. Printful allows 120 requests per minute across the whole app, so caching is what keeps checkout inside that budget. Set 0 to disable."
+    },
+    {
+      "id": "rate_timeout_ms",
+      "label": "Rate request timeout",
+      "type": "integer",
+      "default": 6000,
+      "min": 1000,
+      "max": 9000,
+      "unit": "ms",
+      "description": "How long to wait for a Printful quote before falling back. The whole function is killed at 10000ms, so keep this below 9000."
+    },
+    {
+      "id": "webhook_secret",
+      "label": "Webhook secret key",
+      "type": "text",
+      "readonly": true,
+      "description": "Written by the app when it registers the Printful webhook. Printful shows this value once and re-registering rotates it, so do not edit or clear it by hand."
+    },
+    {
+      "id": "webhook_public_key",
+      "label": "Webhook public key",
+      "type": "text",
+      "readonly": true,
+      "description": "Written by the app alongside the secret key. Used to confirm inbound events came from this webhook registration."
+    }
+  ]
+}

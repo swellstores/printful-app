@@ -1,0 +1,129 @@
+{
+  "collection": "products",
+  "fields": [
+    {
+      "id": "catalog_variant_id",
+      "label": "Printful catalog variant",
+      "type": "number",
+      "admin_span": 2,
+      "readonly": true,
+      "description": "Set on the catalog row, not here. Map a Swell variant to a Printful catalog variant under Products → Printful catalog; that mapping is what the rate and submit paths follow"
+    },
+    {
+      "id": "technique",
+      "label": "Print technique",
+      "type": "text",
+      "admin_span": 2,
+      "description": "Must match a key in the catalog item's Base cost by technique, e.g. dtg or embroidery. A technique the catalog row does not price cannot be costed or ordered"
+    },
+    {
+      "id": "artwork_url",
+      "label": "Artwork URL",
+      "type": "url",
+      "description": "Print file for a product that prints in one spot. Publicly reachable — Printful fetches it, so a signed or private URL fails at production time"
+    },
+    {
+      "id": "artwork_hash",
+      "label": "Artwork hash",
+      "type": "text",
+      "description": "Content hash of the file above. The app carries it in the URL it sends Printful, which is what makes a changed design get refetched instead of the old one being reprinted. Change the artwork, change this"
+    },
+    {
+      "id": "placements",
+      "label": "Print placements",
+      "type": "collection",
+      "item_label": "placement",
+      "description": "For products that print in more than one spot. Listing any placement here replaces the single artwork above — the two are not combined. Every placement beyond the first adds its placement price to the item cost",
+      "fields": [
+        {
+          "id": "placement",
+          "label": "Placement",
+          "type": "text",
+          "required": true,
+          "admin_span": 2,
+          "description": "Printful placement id, e.g. front, back, embroidery_chest_left"
+        },
+        {
+          "id": "technique",
+          "label": "Technique",
+          "type": "text",
+          "admin_span": 2,
+          "description": "Overrides the product technique for this placement only. Leave empty to use it"
+        },
+        {
+          "id": "artwork_url",
+          "label": "Artwork URL",
+          "type": "url",
+          "required": true,
+          "description": "Print file for this placement. Required — a placement with no file is not printed, but Printful still produces and charges for the garment, so the order is stopped instead"
+        },
+        {
+          "id": "artwork_hash",
+          "label": "Artwork hash",
+          "type": "text",
+          "description": "Content hash of this placement's print file"
+        }
+      ]
+    },
+    {
+      "id": "print_area",
+      "label": "Print area",
+      "type": "json",
+      "description": "Printable geometry Printful reports for this product, used to size artwork before it is uploaded. Shape: { \"width\": 12, \"height\": 16, \"dpi\": 300 }, inches"
+    }
+  ],
+  "views": [
+    {
+      "id": "list",
+      "tabs": [
+        {
+          "id": "printful",
+          "label": "Printful",
+          "query": {
+            "catalog_variant_id": {
+              "$ne": null
+            }
+          },
+          "fields": [
+            {
+              "id": "technique"
+            },
+            {
+              "id": "artwork_url",
+              "truncated": 60
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "tabs": [
+        {
+          "id": "printful",
+          "label": "Printful",
+          "fields": [
+            {
+              "id": "catalog_variant_id"
+            },
+            {
+              "id": "technique"
+            },
+            {
+              "id": "artwork_url"
+            },
+            {
+              "id": "artwork_hash"
+            },
+            {
+              "id": "placements"
+            },
+            {
+              "id": "print_area"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
