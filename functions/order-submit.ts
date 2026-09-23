@@ -37,7 +37,7 @@ export default async function (req: SwellRequest) {
     // Printful has no idempotency key, so the durable guarantee against one
     // order becoming two would have to be Printful rejecting a second
     // POST /v2/orders carrying an external_id it already holds. Whether it does
-    // is unverified — OPEN-QUESTIONS.md item 1.
+    // is unverified.
     await req.swell.post(`/apps/${req.appId}/fulfillments`, {
       order_id: order.id,
       external_id: order.id,

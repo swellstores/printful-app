@@ -1,6 +1,6 @@
 {
   "label": "Printful fulfillments",
-  "description": "Durable job that carries one paid Swell order through Printful create, cost calculation and confirmation. One row per order. order_id is unique, which is a read-then-write check rather than a database index — it collapses ordinary duplicate deliveries but leaves a residual race under true concurrency (see OPEN-QUESTIONS.md item 1).",
+  "description": "Durable job that carries one paid Swell order through Printful create, cost calculation and confirmation. One row per order. order_id is unique, which is a read-then-write check rather than a database index — it collapses ordinary duplicate deliveries but leaves a residual race under true concurrency.",
   "name_pattern": "{external_id}",
   "fields": {
     "order_id": {

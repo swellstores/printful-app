@@ -65,7 +65,7 @@ function saveJob(req: SwellRequest, job: any, values: object) {
  *
  * The durable guarantee against a second real order would have to come from
  * Printful rejecting a `POST /v2/orders` that carries an `external_id` it
- * already holds. Whether it does is unverified — OPEN-QUESTIONS.md item 1. Until
+ * already holds. Whether it does is unverified. Until
  * that is confirmed, the residual race here is the residual race on charging.
  *
  * The claim also moves `date_next_attempt` forward, which suppresses the echo
@@ -179,7 +179,7 @@ async function createDraft(req: SwellRequest, printful: Printful, job: any) {
   // pure mapping, and hoisting it makes the gap between "no order exists" and
   // "create one" as narrow as it can be made. Narrow is all it is — nothing
   // stops a concurrent invocation from reading "none" inside the same gap. See
-  // the note on `claim` above, and OPEN-QUESTIONS.md item 1.
+  // the note on `claim` above.
   let draft = await printful.getOrderByExternalId(job.external_id);
 
   if (!draft) {
