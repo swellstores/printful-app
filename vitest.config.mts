@@ -1,4 +1,5 @@
-import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
+import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+import { defineConfig } from "vitest/config";
 import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -111,28 +112,26 @@ function loadSwellAuthOrPlaceholder(): SdkAuth {
 
 const sdkAuth = loadSwellAuthOrPlaceholder();
 
-export default defineWorkersConfig({
+export default defineConfig({
+  plugins: [
+    cloudflareTest({
+      miniflare: {
+        // Required by @cloudflare/vitest-pool-workers; the scaffold omits it.
+        compatibilityDate: "2024-09-23",
+        bindings: {
+          SWELL_STORE_ID: sdkAuth.storeId,
+          SWELL_SESSION_ID: sdkAuth.sessionId,
+          SWELL_API_BASE_URL: sdkAuth.apiBaseUrl,
+          SWELL_APP_ID: "printful",
+          SWELL_ENVIRONMENT: "test",
+        },
+      },
+    }),
+  ],
   test: {
     globals: true,
     include: ["test/**/*.test.ts"],
     exclude: ["node_modules", "docs"],
     setupFiles: ["./test/setup-globals.ts"],
-    poolOptions: {
-      workers: {
-        singleWorker: true,
-        isolatedStorage: true,
-        miniflare: {
-          // Required by @cloudflare/vitest-pool-workers; the scaffold omits it.
-          compatibilityDate: "2024-09-23",
-          bindings: {
-            SWELL_STORE_ID: sdkAuth.storeId,
-            SWELL_SESSION_ID: sdkAuth.sessionId,
-            SWELL_API_BASE_URL: sdkAuth.apiBaseUrl,
-            SWELL_APP_ID: "printful",
-            SWELL_ENVIRONMENT: "test",
-          },
-        },
-      },
-    },
   },
 });

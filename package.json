@@ -3,8 +3,8 @@
   "devDependencies": {
     "@swell/app-types": "^1.2.0",
     "typescript": "^5.9.3",
-    "@cloudflare/vitest-pool-workers": "0.8.x",
-    "vitest": "3.2.x"
+    "@cloudflare/vitest-pool-workers": "0.22.x",
+    "vitest": "~4.1.11"
   },
   "name": "printful",
   "private": true,
@@ -12,5 +12,8 @@
     "typecheck": "([ -z \"$(find functions -name '*.ts' 2>/dev/null | head -1)\" ] || tsc --noEmit) && ([ ! -f test/tsconfig.json ] || tsc --build --noEmit test) && ([ ! -f frontend/tsconfig.json ] || tsc --build --noEmit frontend)",
     "test": "vitest run"
   },
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "overrides": {
+    "sharp": "0.35.4"
+  }
 }

@@ -4,7 +4,7 @@
     "moduleResolution": "bundler",
     "skipLibCheck": true,
     "types": [
-      "@cloudflare/vitest-pool-workers",
+      "@cloudflare/vitest-pool-workers/types",
       "@swell/app-types",
       "vitest/globals"
     ]
