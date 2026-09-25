@@ -1,47 +1,47 @@
 {
-  "description": "Print-on-demand fulfillment: shipping rates, orders and tracking",
-  "id": "printful",
-  "name": "Printful",
-  "support_email": "support@swell.is",
-  "type": "integration",
-  "version": "1.0.0",
-  "permissions": [],
-  "extensions": [
-    {
-      "id": "printful",
-      "type": "shipping",
-      "carrier": "printful",
-      "name": "Printful",
-      "description": "Live Printful shipping rates for print-on-demand items, with a configurable flat-rate fallback."
-    }
-  ],
-  "support_url": "https://www.printful.com/contact",
-  "documentation_url": "https://developers.printful.com/docs/",
-  "price": 0,
-  "images": [
-    {
-      "id": "paid-order-to-tracking",
-      "title": "Paid orders to Printful, tracking back",
-      "description": "Paid orders go to Printful automatically, and each Printful shipment comes back to the Swell order with its tracking number.",
-      "image_src": "assets/screenshots/1-paid-order-to-tracking.png"
-    },
-    {
-      "id": "live-rates-at-checkout",
-      "title": "Live Printful rates at checkout",
-      "description": "Shoppers see Printful shipping rates for their address next to your own services, with an optional fallback rate for slow quotes.",
-      "image_src": "assets/screenshots/2-live-rates-at-checkout.png"
-    },
-    {
-      "id": "try-before-it-costs",
-      "title": "Try it before it costs anything",
-      "description": "Live fulfillment starts off, so paid orders reach Printful as unconfirmed drafts. Nothing is printed or charged until you switch it on.",
-      "image_src": "assets/screenshots/3-try-before-it-costs.png"
-    },
-    {
-      "id": "problems-where-you-work",
-      "title": "Problems show up where you work",
-      "description": "Failures show the reason on the Swell order, email your admins, and retry when you set the fulfillment job back to Pending.",
-      "image_src": "assets/screenshots/4-problems-where-you-work.png"
-    }
-  ]
+	"description": "Print-on-demand fulfillment: shipping rates, orders and tracking",
+	"id": "printful",
+	"name": "Printful",
+	"support_email": "support@swell.is",
+	"type": "integration",
+	"version": "1.0.1",
+	"permissions": [],
+	"extensions": [
+		{
+			"id": "printful",
+			"type": "shipping",
+			"carrier": "printful",
+			"name": "Printful",
+			"description": "Live Printful shipping rates for print-on-demand items, with a configurable flat-rate fallback."
+		}
+	],
+	"support_url": "https://www.printful.com/contact",
+	"documentation_url": "https://developers.printful.com/docs/",
+	"price": 0,
+	"images": [
+		{
+			"id": "paid-order-to-tracking",
+			"title": "Paid orders to Printful, tracking back",
+			"description": "Paid orders go to Printful automatically, and each Printful shipment comes back to the Swell order with its tracking number.",
+			"image_src": "assets/screenshots/1-paid-order-to-tracking.png"
+		},
+		{
+			"id": "live-rates-at-checkout",
+			"title": "Live Printful rates at checkout",
+			"description": "Shoppers see Printful shipping rates for their address next to your own services, with an optional fallback rate for slow quotes.",
+			"image_src": "assets/screenshots/2-live-rates-at-checkout.png"
+		},
+		{
+			"id": "try-before-it-costs",
+			"title": "Try it before it costs anything",
+			"description": "Live fulfillment starts off, so paid orders reach Printful as unconfirmed drafts. Nothing is printed or charged until you switch it on.",
+			"image_src": "assets/screenshots/3-try-before-it-costs.png"
+		},
+		{
+			"id": "problems-where-you-work",
+			"title": "Problems show up where you work",
+			"description": "Failures show the reason on the Swell order, email your admins, and retry when you set the fulfillment job back to Pending.",
+			"image_src": "assets/screenshots/4-problems-where-you-work.png"
+		}
+	]
 }
