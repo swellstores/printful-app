@@ -35,10 +35,71 @@
             }
           ]
         }
+      ],
+      "extra_actions": [
+        {
+          "id": "sync_now",
+          "label": "Sync from Printful",
+          "function": "sync-now",
+          "hint": "Creates and updates products from your Printful store.",
+          "loading_label": "Syncing products from Printful…",
+          "modal": {
+            "title": "Sync products from Printful",
+            "description": "Large stores sync in batches. Run it again to continue where it stopped.",
+            "submit_label": "Sync now",
+            "fields": [
+              {
+                "id": "budget",
+                "label": "Printful requests per run",
+                "type": "integer",
+                "default": 30,
+                "min": 1,
+                "max": 60,
+                "description": "Printful allows 120 requests a minute across the whole app, and checkout shipping quotes use them too."
+              }
+            ]
+          }
+        }
+      ],
+      "bulk_actions": [
+        {
+          "id": "resync_selected",
+          "label": "Resync from Printful",
+          "function": "product-resync",
+          "hint": "Re-reads variants from Printful for the selected products.",
+          "loading_label": "Resyncing selected products…",
+          "modal": {
+            "title": "Resync the selected products?",
+            "description": "Products that did not come from Printful are skipped.",
+            "submit_label": "Resync",
+            "fields": [
+              {
+                "id": "replace_images",
+                "label": "Replace photos with Printful mockups",
+                "type": "toggle",
+                "default": false
+              }
+            ]
+          }
+        }
       ]
     },
     {
       "id": "edit",
+      "extra_actions": [
+        {
+          "id": "resync",
+          "label": "Resync from Printful",
+          "function": "product-resync",
+          "hint": "Re-reads this product's variants from Printful.",
+          "loading_label": "Resyncing product…",
+          "conditions": {
+            "$app.printful.sync_product_id": {
+              "$ne": null
+            }
+          }
+        }
+      ],
       "tabs": [
         {
           "id": "printful",

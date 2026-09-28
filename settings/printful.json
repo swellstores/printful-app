@@ -1,6 +1,20 @@
 {
   "label": "Printful",
-  "description": "1. In Printful, add a Manual order platform / API store and design your products in it. 2. Open Settings → Developers and create a private token for that store with the 'orders', 'sync_products' and 'webhooks' scopes. 3. Paste it below and save. Your products start appearing in Swell within a few minutes, as drafts to review. 4. Enable the carrier in Settings → Shipping → Printful, then click Save changes — rates do not dispatch until you do. 5. Leave Live fulfillment off until you have inspected a draft order in the Printful dashboard.",
+  "description": "1. In Printful, add a Manual order platform / API store and design your products in it. 2. Open Settings → Developers and create a private token for that store with the 'orders', 'sync_products' and 'webhooks' scopes. 3. Paste it below and save, then choose Actions → Sync products now. Your products arrive in Swell as drafts to review, and an hourly sync keeps them up to date. 4. Enable the carrier in Settings → Shipping → Printful, then click Save changes — rates do not dispatch until you do. 5. Leave Live fulfillment off until you have inspected a draft order in the Printful dashboard.",
+  "actions": [
+    {
+      "id": "sync_now",
+      "label": "Sync products now",
+      "function": "sync-now",
+      "hint": "Reads your Printful products now instead of waiting for the hourly sync.",
+      "loading_label": "Syncing products from Printful…",
+      "conditions": {
+        "api_token": {
+          "$ne": null
+        }
+      }
+    }
+  ],
   "fields": [
     {
       "id": "api_token",
@@ -74,7 +88,7 @@
       "label": "Last product sync",
       "type": "datetime",
       "readonly": true,
-      "description": "When the app last read your Printful products. It runs every few minutes."
+      "description": "When the app last read your Printful products. It runs every hour, and whenever you choose Sync now."
     },
     {
       "id": "last_sync_result",
@@ -82,6 +96,19 @@
       "type": "long_text",
       "readonly": true,
       "description": "What the last sync did, and any errors — for example a token without the 'sync_products' scope."
+    },
+    {
+      "id": "sync_now_button",
+      "type": "action",
+      "label": "Sync now",
+      "function": "sync-now",
+      "hint": "Reads your Printful products now instead of waiting for the hourly sync.",
+      "loading_label": "Syncing products from Printful…",
+      "conditions": {
+        "api_token": {
+          "$ne": null
+        }
+      }
     }
   ]
 }

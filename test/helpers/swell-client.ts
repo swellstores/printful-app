@@ -44,15 +44,13 @@ async function makeRequest(
     if (method === "GET") {
       const params = new URLSearchParams();
 
+      // Encodes the way the functions runtime does: arrays by index, and null
+      // as the string "null" (`{ $ne: null }` must survive the query string).
       function append(prefix: string, value: any) {
-        if (value === null || value === undefined) return;
-        if (typeof value === "object" && !Array.isArray(value)) {
+        if (value === undefined) return;
+        if (value !== null && typeof value === "object") {
           for (const [k, v] of Object.entries(value)) {
             append(`${prefix}[${k}]`, v);
-          }
-        } else if (Array.isArray(value)) {
-          for (const v of value) {
-            append(`${prefix}[]`, v);
           }
         } else {
           params.append(prefix, String(value));

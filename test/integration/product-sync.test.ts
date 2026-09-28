@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, afterAll } from "vitest";
 import { env } from "cloudflare:test";
 import { createMockRequest } from "../helpers/mock-request";
+import { createSwellClient } from "../helpers/swell-client";
 import { runProductSync } from "../../functions/lib/products";
+import { post as productResync } from "../../functions/product-resync";
 
 // Runs the real sync against the Swell test environment of the logged-in store,
 // with Printful answered from fixtures. It creates one draft product and
@@ -157,6 +159,57 @@ describe.skipIf(!available)("product sync against Swell", { timeout: 60000 }, ()
     expect(
       rows.every((row: any) => [...variants.values()].some((v) => v.id === row.variant_id)),
     ).toBe(true);
+  });
+
+  it("resyncs selected products, replacing photos only when asked", async () => {
+    const swell = createSwellClient();
+
+    // The action function reads the app settings itself; the test store has
+    // no Printful token, so those reads are answered here.
+    const run = (data: object) =>
+      productResync(
+        createMockRequest({
+          data: data as SwellData,
+          swell: {
+            ...swell,
+            get: (url: string, query?: any) =>
+              url.startsWith("/settings/") ? Promise.resolve(settings) : swell.get(url, query),
+          },
+        }),
+      );
+
+    // The selection exactly as the platform builds it for two checked rows
+    const selection = {
+      all: false,
+      ids: [productId, "000000000000000000000000"],
+      count: 2,
+      query: { where: { id: { $in: [productId, "000000000000000000000000"] } } },
+    };
+    const photos = async () =>
+      ((await req.swell.get(`/products/${productId}`))?.images ?? []).map(
+        (image: any) => image.file.url,
+      );
+
+    await req.swell.put(`/products/${productId}`, {
+      $set: { images: [{ file: { url: "https://cdn.example.com/merchant.jpg" } }] },
+    });
+
+    await expect(
+      run({ $action: { id: "resync_selected", source: "bulk", selection } }),
+    ).resolves.toEqual({
+      message:
+        "Resynced 1 product from Printful. 1 product not from Printful, skipped.",
+    });
+    expect(await photos()).toEqual(["https://cdn.example.com/merchant.jpg"]);
+
+    await run({
+      replace_images: true,
+      $action: { id: "resync_selected", source: "bulk", selection },
+    });
+    expect(await photos()).toEqual([
+      "https://files.cdn.printful.com/files/test/Black.png",
+      "https://files.cdn.printful.com/files/test/White.png",
+    ]);
   });
 
   it("takes a variant removed in Printful off sale", async () => {

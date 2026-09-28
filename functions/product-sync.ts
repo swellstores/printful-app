@@ -3,8 +3,10 @@ import { runProductSync } from "./lib/products";
 
 export const config: SwellConfig = {
   description: "Create and update Swell products from the products designed in Printful",
+  // Hourly catches up on changes; the "Sync products now" action pulls new
+  // designs right away.
   cron: {
-    schedule: "*/5 * * * *",
+    schedule: "0 * * * *",
   },
 };
 

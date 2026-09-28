@@ -1,4 +1,4 @@
-import Printful from "./printful";
+import Printful, { PrintfulError } from "./printful";
 import { putSettings, PrintfulSettings } from "./settings";
 
 const LIST_PAGE = 100;
@@ -379,12 +379,28 @@ async function listSyncProducts(printful: Printful, budget: Budget) {
   }
 }
 
+/** A Swell product's link to Printful, read off its app values. */
+function productState(req: SwellRequest, product: any) {
+  const values = product.$app?.[req.appId as string] ?? {};
+
+  return {
+    syncProductId: Number(values.sync_product_id) || undefined,
+    state: {
+      id: product.id,
+      price: product.price,
+      options: product.options,
+      sync_variant_count: values.sync_variant_count,
+      date_synced: values.date_synced,
+    } as SwellProductState,
+  };
+}
+
 /** Swell products already created from Printful, keyed by Printful product id. */
 async function getLinkedProducts(
   req: SwellRequest,
   syncProductIds: number[],
 ): Promise<Map<number, SwellProductState>> {
-  const state = new Map<number, SwellProductState>();
+  const linked = new Map<number, SwellProductState>();
 
   for (let i = 0; i < syncProductIds.length; i += 100) {
     const ids = syncProductIds.slice(i, i + 100);
@@ -395,19 +411,15 @@ async function getLinkedProducts(
     });
 
     for (const product of result?.results ?? []) {
-      const values = product.$app?.[req.appId as string] ?? {};
+      const { syncProductId, state } = productState(req, product);
 
-      state.set(Number(values.sync_product_id), {
-        id: product.id,
-        price: product.price,
-        options: product.options,
-        sync_variant_count: values.sync_variant_count,
-        date_synced: values.date_synced,
-      });
+      if (syncProductId) {
+        linked.set(syncProductId, state);
+      }
     }
   }
 
-  return state;
+  return linked;
 }
 
 /**
@@ -520,11 +532,21 @@ async function syncProduct(
   budget: Budget,
   summary: SyncProductSummary,
   existing: SwellProductState | undefined,
+  options: { replaceImages?: boolean } = {},
 ): Promise<"created" | "updated" | "retired" | "skipped"> {
   budget.used++;
-  const detail: SyncProductDetail | null = await printful.getSyncProduct(
-    summary.id,
-  );
+  let detail: SyncProductDetail | null;
+
+  try {
+    detail = await printful.getSyncProduct(summary.id);
+  } catch (err) {
+    // Deleted in Printful since it was listed, or since a resync was asked for
+    if (err instanceof PrintfulError && err.status === 404) {
+      detail = null;
+    } else {
+      throw err;
+    }
+  }
 
   const syncProductId = Number(summary.id);
   const variants = sellable(detail?.sync_variants ?? []);
@@ -648,12 +670,23 @@ async function syncProduct(
     })),
   ]);
 
+  // Only when the merchant asks for it: after the first sync the photos are
+  // theirs. `$set` replaces them; a plain array write merges by position.
+  const mockups = mockupImages(detail);
+
+  if (options.replaceImages && existing && mockups.length > 0) {
+    await req.swell.put(`/products/${product.id}`, {
+      $set: { images: mockups.map((url) => ({ file: { url } })) },
+    });
+  }
+
   // Written last: a run cut off before this point leaves the count unset, so
-  // the next run treats the product as changed and finishes it.
+  // the next run treats the product as changed and finishes it. A resync has
+  // no list entry to count from, so it counts the variants it just read.
   await req.swell.put(
     `/products/${product.id}`,
     req.appValues({
-      sync_variant_count: summary.variants,
+      sync_variant_count: summary.variants ?? detail.sync_variants.length,
       date_synced,
     }),
   );
@@ -696,11 +729,14 @@ export interface SyncResult {
   retired: number;
   requests_used: number;
   complete: boolean;
+  /** False when the Printful product list could not be read at all */
+  listed: boolean;
+  summary: string;
   errors: string[];
 }
 
-function summarize(result: SyncResult, listed: boolean): string {
-  if (!listed) {
+function summarize(result: SyncResult): string {
+  if (!result.listed) {
     return `Could not read your Printful products: ${result.errors.join("; ")}`.slice(
       0,
       1000,
@@ -748,14 +784,14 @@ export async function runProductSync(
     retired: 0,
     requests_used: 0,
     complete: false,
+    listed: false,
+    summary: "",
     errors: [],
   };
 
-  let listed = false;
-
   try {
     const listing = await listSyncProducts(printful, budget);
-    listed = true;
+    result.listed = true;
     const products = listing.products.filter((product) => !product.is_ignored);
     const state = await getLinkedProducts(
       req,
@@ -807,11 +843,88 @@ export async function runProductSync(
   }
 
   result.requests_used = budget.used;
+  result.summary = summarize(result);
 
   await putSettings(req, {
     last_sync_at: new Date().toISOString(),
-    last_sync_result: summarize(result, listed),
+    last_sync_result: result.summary,
   });
+
+  return result;
+}
+
+export interface ResyncResult {
+  resynced: number;
+  retired: number;
+  /** Printful products the time budget did not reach */
+  remaining: number;
+  /** Selected products that were not synced from Printful */
+  skipped: number;
+  errors: string[];
+}
+
+/**
+ * Re-reads the given Swell products from Printful now, whether or not
+ * Printful's list shows a change. Oldest-synced first, so running it again on
+ * the same products continues where the time budget stopped it.
+ */
+export async function resyncProducts(
+  req: SwellRequest,
+  settings: PrintfulSettings,
+  products: any[],
+  options: { replaceImages?: boolean } = {},
+): Promise<ResyncResult> {
+  const printful = new Printful(settings.api_token as string, settings.store_id);
+
+  const budget: Budget = {
+    used: 0,
+    limit: DEFAULT_REQUEST_BUDGET,
+    deadline: Date.now() + TIME_BUDGET_MS,
+  };
+
+  const linked = products
+    .map((product) => ({ product, ...productState(req, product) }))
+    .filter(({ syncProductId }) => syncProductId)
+    .sort((a, b) =>
+      String(a.state.date_synced ?? "").localeCompare(
+        String(b.state.date_synced ?? ""),
+      ),
+    );
+
+  const result: ResyncResult = {
+    resynced: 0,
+    retired: 0,
+    remaining: 0,
+    skipped: products.length - linked.length,
+    errors: [],
+  };
+
+  for (const { product, syncProductId, state } of linked) {
+    if (!hasBudget(budget)) {
+      result.remaining++;
+      continue;
+    }
+
+    try {
+      const outcome = await syncProduct(
+        req,
+        printful,
+        budget,
+        { id: syncProductId as number, name: product.name },
+        state,
+        options,
+      );
+
+      if (outcome === "retired") {
+        result.retired++;
+      } else {
+        result.resynced++;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      result.errors.push(`${product.name ?? product.id}: ${message}`);
+    }
+  }
 
   return result;
 }
