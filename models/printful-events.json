@@ -12,7 +12,7 @@
     "type": {
       "type": "string",
       "required": true,
-      "description": "Printful event type (shipment_sent, order_updated, order_failed, catalog_price_changed, ...)"
+      "description": "Printful event type (shipment_sent, order_updated, order_failed, ...)"
     },
     "occurred_at": {
       "type": "date",

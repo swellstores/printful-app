@@ -22,7 +22,7 @@ export class PrintfulError extends Error {
 
 // Printful allows 120 requests per 60s across the whole token, dropping to 5
 // per 60s for a cart over 100 units, and checkout quoting shares that budget
-// with the catalog sync. The response header is the only forward-looking
+// with the product sync. The response header is the only forward-looking
 // signal available, so the last one seen in this isolate is kept here for the
 // checkout path to read before it spends a request. One deployed script serves
 // every store with the app installed, so a reading is filed under the budget it
@@ -176,25 +176,28 @@ export default class Printful {
     return text ? JSON.parse(text) : null;
   }
 
-  listCatalogProducts(limit: number, offset: number) {
-    return this.request("GET", withQuery("/v2/catalog-products", { limit, offset }));
+  /**
+   * The products the merchant designed in their Printful store. Product
+   * management is not in v2 yet, so this is v1: `{result, paging}`, at most
+   * 100 per page.
+   */
+  listSyncProducts(limit: number, offset: number) {
+    return this.request("GET", withQuery("/store/products", { limit, offset }));
   }
 
-  listCatalogVariants(productId: number, limit: number, offset: number) {
-    return this.request(
-      "GET",
-      withQuery(`/v2/catalog-products/${productId}/catalog-variants`, {
-        limit,
-        offset,
-      }),
-    );
+  /** One designed product with its variants (v1). */
+  async getSyncProduct(syncProductId: number) {
+    const result = await this.request("GET", `/store/products/${syncProductId}`);
+    return result?.result ?? null;
   }
 
-  listCatalogPrices(productId: number, limit: number, offset: number) {
-    return this.request(
+  /** The catalog product a design is printed on, for its description. */
+  async getCatalogProduct(catalogProductId: number) {
+    const result = await this.request(
       "GET",
-      withQuery(`/v2/catalog-products/${productId}/prices`, { limit, offset }),
+      `/v2/catalog-products/${catalogProductId}`,
     );
+    return result?.data ?? null;
   }
 
   getShippingRates(body: object): Promise<{ data: PrintfulRate[] }> {
@@ -214,9 +217,16 @@ export default class Printful {
     }
   }
 
+  /**
+   * Created with v1 because v2 order items cannot reference a designed product:
+   * v2 accepts catalog, warehouse and product template items only, while v1
+   * takes a `sync_variant_id` and prints the files stored with it. Without
+   * `confirm` the order is a draft. Reading, confirming and shipments stay on
+   * v2, which works on the same orders.
+   */
   async createOrder(body: object) {
-    const result = await this.request("POST", "/v2/orders", body);
-    return result?.data ?? null;
+    const result = await this.request("POST", "/orders", body);
+    return result?.result ?? null;
   }
 
   /** Charges the Printful account. Never call this outside `canFulfillLive`. */

@@ -1,6 +1,6 @@
 import Printful from "./lib/printful";
 import { getSettings, putSettings, PrintfulSettings } from "./lib/settings";
-import { runCatalogSync } from "./lib/catalog";
+import { runProductSync } from "./lib/products";
 
 // Printful only delivers the event types named at registration, so every type
 // printful-event-handle branches on has to be listed here or its branch is
@@ -12,42 +12,16 @@ const WEBHOOK_EVENTS = [
   "order_failed",
   "order_canceled",
   "order_refunded",
-  "catalog_price_changed",
-  "catalog_stock_updated",
 ];
-
-// Catalog rows read to derive the watched product list. One row per variant, so
-// this covers a few hundred products; a larger catalog watches the first page.
-const MAX_CATALOG_ROWS = 1000;
 
 export const config: SwellConfig = {
   description:
-    "Run or resume the Printful catalog sync now, and register the Printful webhook",
+    "Run the Printful product sync now, or register the Printful webhook",
   route: {
     methods: ["post"],
     public: false,
   },
 };
-
-/**
- * `catalog_stock_updated` is scoped at registration: it only fires for the
- * catalog products named in its params, so the synced ones are listed. Products
- * synced after this runs are not watched until the webhook is registered again.
- */
-async function watchedProductIds(req: SwellRequest): Promise<number[]> {
-  const result = await req.swell.get(`/apps/${req.appId}/catalog-items`, {
-    limit: MAX_CATALOG_ROWS,
-    fields: ["catalog_product_id"],
-  });
-
-  return [
-    ...new Set(
-      (result?.results ?? [])
-        .map((row: any) => Number(row.catalog_product_id))
-        .filter((id: number) => Number.isFinite(id) && id > 0),
-    ),
-  ] as number[];
-}
 
 /**
  * `POST /v2/webhooks` is a destructive singleton: one configuration exists per
@@ -77,21 +51,9 @@ async function registerWebhook(
     settings.store_id,
   );
 
-  const products = await watchedProductIds(req);
-
-  // Printful requires the product list on the stock event, so it is registered
-  // only once the catalog sync has produced something to watch.
-  const types = WEBHOOK_EVENTS.filter(
-    (type) => type !== "catalog_stock_updated" || products.length > 0,
-  );
-
   const result = await printful.createWebhook({
     default_url: url,
-    events: types.map((type) =>
-      type === "catalog_stock_updated"
-        ? { type, params: [{ name: "products", value: products }] }
-        : { type },
-    ),
+    events: WEBHOOK_EVENTS.map((type) => ({ type })),
   });
 
   await putSettings(req, {
@@ -101,8 +63,7 @@ async function registerWebhook(
 
   return {
     url,
-    events: types,
-    watched_products: products.length,
+    events: WEBHOOK_EVENTS,
     registered: Boolean(result?.secret_key),
     note:
       "This replaced any previous Printful webhook and rotated its secret and " +
@@ -129,7 +90,7 @@ export async function post(req: SwellRequest) {
 
   const budget = Number(req.data.budget);
 
-  return runCatalogSync(req, settings, {
+  return runProductSync(req, settings, {
     budget: Number.isFinite(budget) && budget > 0 ? budget : undefined,
   });
 }

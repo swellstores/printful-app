@@ -1,5 +1,5 @@
 import { getSettings } from "./lib/settings";
-import { getCatalogItems, toRateItems } from "./lib/mapping";
+import { getVariantLinks, toRateItems } from "./lib/mapping";
 import { isUniqueViolation } from "./lib/errors";
 
 export const config: SwellConfig = {
@@ -17,9 +17,9 @@ export default async function (req: SwellRequest) {
     return;
   }
 
-  const catalog = await getCatalogItems(req, order.items ?? []);
+  const links = await getVariantLinks(req, order.items ?? []);
 
-  if (toRateItems(order.items ?? [], catalog).length === 0) {
+  if (toRateItems(order.items ?? [], links).length === 0) {
     return;
   }
 
@@ -36,7 +36,7 @@ export default async function (req: SwellRequest) {
     //
     // Printful has no idempotency key, so the durable guarantee against one
     // order becoming two would have to be Printful rejecting a second
-    // POST /v2/orders carrying an external_id it already holds. Whether it does
+    // POST /orders carrying an external_id it already holds. Whether it does
     // is unverified.
     await req.swell.post(`/apps/${req.appId}/fulfillments`, {
       order_id: order.id,

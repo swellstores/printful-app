@@ -1,0 +1,57 @@
+{
+  "label": "Printful variants",
+  "description": "Links each Swell variant to the Printful variant it was synced from. Written by the product sync; the rate and order paths follow these links.",
+  "name_pattern": "{name}",
+  "fields": {
+    "sync_variant_id": {
+      "type": "int",
+      "required": true,
+      "unique": true,
+      "description": "Printful sync variant id, and this row's identity. Orders reference it, so Printful prints the files stored with the design. Marked unique, which in Swell is a read-then-write validation rather than a database index"
+    },
+    "sync_product_id": {
+      "type": "int",
+      "required": true,
+      "description": "Printful product this variant belongs to"
+    },
+    "catalog_variant_id": {
+      "type": "int",
+      "required": true,
+      "description": "Printful catalog variant the design is printed on. Shipping quotes ask for this"
+    },
+    "product_id": {
+      "type": "objectid",
+      "description": "Swell product created from the Printful product"
+    },
+    "product": {
+      "type": "link",
+      "model": "products",
+      "key": "product_id"
+    },
+    "variant_id": {
+      "type": "objectid",
+      "description": "Swell product variant this Printful variant is sold as"
+    },
+    "variant": {
+      "type": "link",
+      "model": "products:variants",
+      "key": "variant_id"
+    },
+    "name": {
+      "type": "string"
+    },
+    "size": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string"
+    },
+    "sku": {
+      "type": "string"
+    },
+    "date_synced": {
+      "type": "date",
+      "description": "When this link last matched Printful"
+    }
+  }
+}

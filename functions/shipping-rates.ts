@@ -1,6 +1,6 @@
 import Printful, { getRateLimitRemaining, rateLimitKey } from "./lib/printful";
 import { getSettings, PrintfulSettings } from "./lib/settings";
-import { getCatalogItems, toRateItems, toRecipient } from "./lib/mapping";
+import { getVariantLinks, toRateItems, toRecipient } from "./lib/mapping";
 import {
   FALLBACK_SERVICE_ID,
   isPrintfulService,
@@ -44,7 +44,7 @@ function fallbackServices(settings: PrintfulSettings): ShippingService[] {
 
 export default async function (req: SwellRequest) {
   // The configured timeout is the budget for the whole invocation, not just the
-  // Printful call: the settings and catalog reads below spend part of it, and
+  // Printful call: the settings and link reads below spend part of it, and
   // the platform kills the function at 10s whether or not the fallback has been
   // returned. Measuring from here keeps the abort ahead of that kill.
   const startedAt = Date.now();
@@ -80,8 +80,8 @@ export default async function (req: SwellRequest) {
   }
 
   try {
-    const catalog = await getCatalogItems(req, items);
-    const rateItems = toRateItems(items, catalog);
+    const links = await getVariantLinks(req, items);
+    const rateItems = toRateItems(items, links);
 
     if (rateItems.length === 0) {
       return;

@@ -1,7 +1,7 @@
 import Printful, { PrintfulError } from "./lib/printful";
 import { getSettings, PrintfulSettings } from "./lib/settings";
 import { canFulfillLive } from "./lib/env";
-import { getCatalogItems, toOrderItems, toRecipient } from "./lib/mapping";
+import { getVariantLinks, toOrderItems, toRecipient } from "./lib/mapping";
 import { toPrintfulShipping } from "./lib/rates";
 
 const MAX_ATTEMPTS = 8;
@@ -64,7 +64,7 @@ function saveJob(req: SwellRequest, job: any, values: object) {
  * close true concurrency.
  *
  * The durable guarantee against a second real order would have to come from
- * Printful rejecting a `POST /v2/orders` that carries an `external_id` it
+ * Printful rejecting a `POST /orders` that carries an `external_id` it
  * already holds. Whether it does is unverified. Until
  * that is confirmed, the residual race here is the residual race on charging.
  *
@@ -107,70 +107,18 @@ async function fail(req: SwellRequest, job: any, message: string) {
   });
 }
 
-/** Names an order item by its product, for an error a merchant has to act on. */
-function productName(order: any, externalId?: string): string {
-  const orderItem = (order.items ?? []).find(
-    (item: any) => String(item.id) === String(externalId),
-  );
-
-  return String(
-    orderItem?.product?.name ?? orderItem?.product_id ?? externalId ?? "unknown",
-  );
-}
-
 async function createDraft(req: SwellRequest, printful: Printful, job: any) {
-  const order = await req.swell.get("/orders/{id}", {
-    id: job.order_id,
-    expand: ["items.product"],
-  });
+  const order = await req.swell.get("/orders/{id}", { id: job.order_id });
 
   if (!order) {
     return fail(req, job, "Swell order no longer exists");
   }
 
-  const catalog = await getCatalogItems(req, order.items ?? []);
-  const { orderItems, missingArtwork } = toOrderItems(
-    order.items ?? [],
-    catalog,
-  );
+  const links = await getVariantLinks(req, order.items ?? []);
+  const orderItems = toOrderItems(order.items ?? [], links);
 
   if (orderItems.length === 0) {
-    return fail(
-      req,
-      job,
-      "No order item maps to a synced Printful catalog variant",
-    );
-  }
-
-  // A placement the merchant configured but never gave a print file to would be
-  // dropped from the request, and Printful would print and charge for a garment
-  // missing that print. Half-configured is a mistake, not an instruction.
-  const [missing] = missingArtwork;
-
-  if (missing) {
-    return fail(
-      req,
-      job,
-      `No artwork is configured for the "${missing.placement}" print placement ` +
-        `on product "${productName(order, missing.external_id)}". ` +
-        `Set its print file, then set this job back to Pending.`,
-    );
-  }
-
-  // An item with no placement is a blank garment at Printful, printed and
-  // charged. Print configuration lives on the product under $app.printful, so
-  // an unconfigured product resolves to zero placements and has to stop the
-  // order rather than be submitted.
-  const unprinted = orderItems.find((item) => item.placements.length === 0);
-
-  if (unprinted) {
-    return fail(
-      req,
-      job,
-      `No Printful print placement is configured for product ` +
-        `"${productName(order, unprinted.external_id)}". ` +
-        `Set its print file, then set this job back to Pending.`,
-    );
+    return fail(req, job, "No order item is linked to a Printful product");
   }
 
   // Adopting an existing order by external_id covers the pass that posted this
@@ -187,7 +135,7 @@ async function createDraft(req: SwellRequest, printful: Printful, job: any) {
       external_id: job.external_id,
       shipping: toPrintfulShipping(order.shipping?.service) ?? undefined,
       recipient: toRecipient(order.shipping, order.email),
-      order_items: orderItems,
+      items: orderItems,
     });
   }
 

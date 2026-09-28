@@ -8,6 +8,8 @@ export interface PrintfulSettings {
   rate_timeout_ms?: number;
   webhook_secret?: string;
   webhook_public_key?: string;
+  last_sync_at?: string;
+  last_sync_result?: string;
 }
 
 /**

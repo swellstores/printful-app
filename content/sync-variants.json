@@ -1,0 +1,139 @@
+{
+  "collection": "sync-variants",
+  "label": "Printful variants",
+  "description": "Which Swell variant each Printful variant is sold as. Maintained by the product sync; nothing here needs editing.",
+  "fields": [
+    {
+      "id": "name",
+      "label": "Printful variant",
+      "type": "text",
+      "readonly": true
+    },
+    {
+      "id": "variant",
+      "label": "Swell variant",
+      "type": "variant_lookup",
+      "key": "variant_id",
+      "readonly": true
+    },
+    {
+      "id": "sync_variant_id",
+      "label": "Printful variant ID",
+      "type": "integer",
+      "readonly": true,
+      "admin_span": 2
+    },
+    {
+      "id": "catalog_variant_id",
+      "label": "Catalog variant ID",
+      "type": "integer",
+      "readonly": true,
+      "admin_span": 2
+    },
+    {
+      "id": "size",
+      "label": "Size",
+      "type": "text",
+      "readonly": true,
+      "admin_span": 2
+    },
+    {
+      "id": "color",
+      "label": "Color",
+      "type": "text",
+      "readonly": true,
+      "admin_span": 2
+    },
+    {
+      "id": "sku",
+      "label": "SKU",
+      "type": "text",
+      "readonly": true,
+      "admin_span": 2
+    },
+    {
+      "id": "date_synced",
+      "label": "Last synced",
+      "type": "datetime",
+      "readonly": true,
+      "admin_span": 2
+    }
+  ],
+  "views": [
+    {
+      "id": "list",
+      "nav": {
+        "parent": "products",
+        "label": "Printful variants"
+      },
+      "query": {
+        "sort": "date_synced desc"
+      },
+      "fields": [
+        {
+          "id": "name"
+        },
+        {
+          "id": "variant"
+        },
+        {
+          "id": "size"
+        },
+        {
+          "id": "color"
+        },
+        {
+          "id": "sku"
+        },
+        {
+          "id": "date_synced"
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "title": "{{ name }}",
+      "fields": [
+        {
+          "id": "name"
+        },
+        {
+          "id": "variant"
+        },
+        {
+          "type": "field_row",
+          "fields": [
+            {
+              "id": "sync_variant_id"
+            },
+            {
+              "id": "catalog_variant_id"
+            }
+          ]
+        },
+        {
+          "type": "field_row",
+          "fields": [
+            {
+              "id": "size"
+            },
+            {
+              "id": "color"
+            }
+          ]
+        },
+        {
+          "type": "field_row",
+          "fields": [
+            {
+              "id": "sku"
+            },
+            {
+              "id": "date_synced"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

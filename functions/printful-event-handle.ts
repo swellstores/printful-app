@@ -1,9 +1,6 @@
 import Printful from "./lib/printful";
 import { getSettings } from "./lib/settings";
 
-const TRANSACTION_SIZE = 10;
-const MAX_STALE_ROWS = 100;
-
 // After this many failed deliveries stop retrying. An event that cannot be
 // handled must not keep failing until the platform auto-disables the function;
 // it stays unprocessed with its error for an operator to replay.
@@ -197,42 +194,6 @@ async function handleOrderStatus(
   });
 }
 
-async function markStale(req: SwellRequest, data: any) {
-  const productIds = (data.catalog_product_ids ?? []).map(Number);
-  const variantIds = (data.catalog_variant_ids ?? []).map(Number);
-
-  const where = productIds.length
-    ? { catalog_product_id: { $in: productIds } }
-    : variantIds.length
-      ? { catalog_variant_id: { $in: variantIds } }
-      : null;
-
-  if (!where) {
-    return;
-  }
-
-  const collection = `/apps/${req.appId}/catalog-items`;
-
-  const result = await req.swell.get(collection, {
-    ...where,
-    stale: { $ne: true },
-    limit: MAX_STALE_ROWS,
-    fields: ["id"],
-  });
-
-  const rows = result?.results ?? [];
-
-  for (let i = 0; i < rows.length; i += TRANSACTION_SIZE) {
-    await req.swell.transaction(
-      rows.slice(i, i + TRANSACTION_SIZE).map((row: any) => ({
-        method: "put" as const,
-        url: `${collection}/${row.id}`,
-        data: { stale: true },
-      })),
-    );
-  }
-}
-
 export default async function (req: SwellRequest) {
   const event = req.data;
 
@@ -266,10 +227,6 @@ export default async function (req: SwellRequest) {
         break;
       case "order_refunded":
         await handleOrderStatus(req, data, "refunded");
-        break;
-      case "catalog_price_changed":
-      case "catalog_stock_updated":
-        await markStale(req, data);
         break;
     }
 

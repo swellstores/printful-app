@@ -51,19 +51,7 @@ export async function post(req: SwellRequest) {
 
   // Printful retries at 1, 4, 16, 64, 256 and 1024 minutes and sends no
   // delivery id, so the subject plus the event time is the only replay key.
-  // Catalog events carry no order or shipment, and occurred_at is only
-  // second-resolution, so the ids they do carry stand in as the subject —
-  // without them two catalog events in the same second share a key and the
-  // second is dropped as a replay. Those ids are stable across a retry, unlike
-  // the envelope's own retry counter.
-  const subject =
-    data.shipment?.id ??
-    data.order?.id ??
-    data.order_id ??
-    [
-      ...(data.catalog_product_ids ?? []),
-      ...(data.catalog_variant_ids ?? []),
-    ].join(",");
+  const subject = data.shipment?.id ?? data.order?.id ?? data.order_id ?? "";
 
   const dedupeKey = `${event.type}:${subject}:${occurredAt ?? ""}`;
 

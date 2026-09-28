@@ -1,52 +1,26 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createMockRequest } from "../helpers/mock-request";
 import handler from "../../functions/fulfillment-advance";
-import { toOrderItems } from "../../functions/lib/mapping";
-import type { CatalogItem, SwellItem } from "../../functions/lib/mapping";
+import { toOrderItems, toRateItems } from "../../functions/lib/mapping";
+import type { VariantLink } from "../../functions/lib/mapping";
 
-const CATALOG = new Map<string, CatalogItem>([
-  ["variant_1", { id: "cat_1", variant_id: "variant_1", catalog_variant_id: 4012 }],
-]);
-
-const CATALOG_ROW = {
+const LINK: VariantLink = {
+  id: "link_1",
   variant_id: "variant_1",
+  sync_variant_id: 5001,
   catalog_variant_id: 4012,
-  catalog_product_id: 71,
 };
 
-/** A product the merchant never configured for printing at all. */
-const UNCONFIGURED: SwellItem = {
-  id: "item_1",
-  variant_id: "variant_1",
-  quantity: 1,
-  product: {},
-};
+const LINKS = new Map<string, VariantLink>([["variant_1", LINK]]);
 
-/** Two placements listed, only one of them given a print file. */
-const PARTIAL: SwellItem = {
-  id: "item_1",
-  variant_id: "variant_1",
-  quantity: 1,
-  product: {
-    $app: {
-      printful: {
-        placements: [
-          {
-            placement: "front",
-            artwork_url: "https://cdn.example.com/front.png",
-          },
-          { placement: "back" },
-        ],
-      },
-    },
-  },
-};
+const LINKED_ITEM = { id: "item_1", variant_id: "variant_1", quantity: 2 };
+const UNLINKED_ITEM = { id: "item_2", variant_id: "variant_9", quantity: 1 };
 
 /**
  * Drives the create pass of the fulfillment job. The job is `pending` with no
  * next attempt, which is the documented operator retry and runs immediately.
  */
-function driveCreate(orderItems: any[]) {
+function driveCreate(orderItems: any[], links: VariantLink[]) {
   const puts: Array<{ url: string; values: any }> = [];
 
   const get = vi.fn(async (url: string) => {
@@ -55,11 +29,16 @@ function driveCreate(orderItems: any[]) {
     }
 
     if (url === "/orders/{id}") {
-      return { id: "order_1", items: orderItems };
+      return {
+        id: "order_1",
+        email: "ana@example.com",
+        shipping: { name: "Ana Torres", country: "US", service: "printful_STANDARD" },
+        items: orderItems,
+      };
     }
 
-    if (url.endsWith("/catalog-items")) {
-      return { results: [CATALOG_ROW] };
+    if (url.endsWith("/sync-variants")) {
+      return { results: links };
     }
 
     throw new Error(`unexpected get: ${url}`);
@@ -84,12 +63,11 @@ function driveCreate(orderItems: any[]) {
   return { req, puts };
 }
 
-/** The write that parked the job, i.e. what the merchant is shown. */
-function failure(puts: Array<{ url: string; values: any }>) {
-  return puts.find(
-    (write) =>
-      write.url.includes("/fulfillments/") && write.values.state === "failed",
-  )?.values;
+function jsonResponse(status: number, body: object) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
 
 afterEach(() => {
@@ -97,63 +75,91 @@ afterEach(() => {
 });
 
 describe("toOrderItems", () => {
-  it("reports a configured placement with no print file", () => {
-    const { orderItems, missingArtwork } = toOrderItems([PARTIAL], CATALOG);
-
-    // The item still maps, and the unprintable placement is reported rather
-    // than quietly dropped — dropping it leaves a non-empty placements array
-    // that clears the zero-placement guard.
-    expect(orderItems).toHaveLength(1);
-    expect(orderItems[0].placements.map((p) => p.placement)).toEqual(["front"]);
-    expect(missingArtwork).toEqual([
-      { external_id: "item_1", placement: "back" },
+  it("orders the linked Printful variant so its stored print files are used", () => {
+    expect(toOrderItems([LINKED_ITEM], LINKS)).toEqual([
+      { sync_variant_id: 5001, quantity: 2, external_id: "item_1" },
     ]);
   });
 
-  it("resolves an unconfigured product to zero placements", () => {
-    const { orderItems, missingArtwork } = toOrderItems(
-      [UNCONFIGURED],
-      CATALOG,
-    );
-
-    expect(orderItems[0].placements).toEqual([]);
-    // The synthesized default placement is not reported as missing artwork;
-    // the caller reports the product as unconfigured instead.
-    expect(missingArtwork).toEqual([]);
+  it("leaves out items that are not linked to Printful", () => {
+    expect(toOrderItems([UNLINKED_ITEM], LINKS)).toEqual([]);
   });
 });
 
-describe("create pass guards", () => {
-  it("refuses an order item with no print placement", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    const { req, puts } = driveCreate([
-      { ...UNCONFIGURED, product: { name: "Blank Tee" } },
+describe("toRateItems", () => {
+  it("quotes the catalog variant the design is printed on", () => {
+    expect(toRateItems([LINKED_ITEM, UNLINKED_ITEM], LINKS)).toEqual([
+      { source: "catalog", catalog_variant_id: 4012, quantity: 2 },
     ]);
+  });
+});
+
+describe("create pass", () => {
+  it("fails an order with no linked item before any Printful call", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const { req, puts } = driveCreate([UNLINKED_ITEM], []);
 
     await handler(req);
 
-    // The refusal must land before any Printful I/O: a draft created here is a
-    // blank garment Printful prints and charges for.
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(String(failure(puts)?.last_error)).toContain(
-      'No Printful print placement is configured for product "Blank Tee"',
+
+    const failed = puts.find(
+      (write) =>
+        write.url.includes("/fulfillments/") && write.values.state === "failed",
+    );
+    expect(failed?.values.last_error).toBe(
+      "No order item is linked to a Printful product",
     );
   });
 
-  it("refuses an order item missing artwork for a configured placement", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    const { req, puts } = driveCreate([
-      {
-        ...PARTIAL,
-        product: { ...PARTIAL.product, name: "Logo Tee" },
-      },
-    ]);
+  it("creates a v1 draft that references the sync variant", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.endsWith("/v2/orders/@swell_order_1")) {
+          return jsonResponse(404, { code: 404, result: "Not found" });
+        }
+
+        if (url.endsWith("/orders")) {
+          return jsonResponse(200, {
+            code: 200,
+            result: { id: 777, status: "draft" },
+          });
+        }
+
+        throw new Error(`unexpected fetch: ${url}`);
+      });
+
+    const { req, puts } = driveCreate([LINKED_ITEM, UNLINKED_ITEM], [LINK]);
 
     await handler(req);
 
-    expect(fetchSpy).not.toHaveBeenCalled();
-    expect(String(failure(puts)?.last_error)).toContain(
-      'No artwork is configured for the "back" print placement on product "Logo Tee"',
+    const create = fetchSpy.mock.calls.find(([input]) =>
+      String(input).endsWith("/orders"),
     );
+
+    // No `confirm` parameter: the order stays a draft until live fulfillment
+    // allows the separate confirmation call.
+    expect(String(create?.[0])).toBe("https://api.printful.com/orders");
+
+    const body = JSON.parse(String((create?.[1] as RequestInit).body));
+
+    expect(body).toMatchObject({
+      external_id: "swell_order_1",
+      shipping: "STANDARD",
+      items: [{ sync_variant_id: 5001, quantity: 2, external_id: "item_1" }],
+    });
+
+    // The claim also writes `created` before any Printful call; the job record
+    // that follows the create is the one carrying the Printful order id.
+    const created = puts.find(
+      (write) =>
+        write.url.includes("/fulfillments/") &&
+        write.values.state === "created" &&
+        "printful_order_id" in write.values,
+    );
+    expect(created?.values.printful_order_id).toBe("777");
   });
 });

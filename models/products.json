@@ -1,67 +1,17 @@
 {
-  "description": "Printful catalog linkage and print specification for a product. Written by the app under $app.printful.",
+  "description": "Link from a Swell product to the Printful product it was synced from. Written by the app under $app.printful.",
   "fields": {
-    "catalog_product_id": {
+    "sync_product_id": {
       "type": "int",
-      "description": "Printful catalog product this Swell product was synced from"
+      "description": "Printful product this Swell product was created from"
     },
-    "catalog_variant_id": {
+    "sync_variant_count": {
       "type": "int",
-      "description": "Printful catalog variant this product prints on, mirrored for reference. The mapping the code follows lives on apps/printful/catalog-items.variant_id"
+      "description": "Variant count Printful reported at the last sync. A different count on the next listing marks the product for re-sync"
     },
-    "technique": {
-      "type": "string",
-      "description": "Print technique used for costing and order items (e.g. dtg, embroidery)"
-    },
-    "placements": {
-      "type": "array",
-      "value_type": "object",
-      "description": "Print placements submitted with each order item",
-      "fields": {
-        "placement": {
-          "type": "string",
-          "required": true,
-          "description": "Printful placement id (e.g. front, back, embroidery_chest_left)"
-        },
-        "technique": {
-          "type": "string"
-        },
-        "artwork_url": {
-          "type": "string",
-          "required": true,
-          "description": "Publicly reachable print file for this placement. Required: a placement listed with no file is not printed, and Printful still produces and charges for the garment"
-        },
-        "artwork_hash": {
-          "type": "string",
-          "description": "Content hash of the print file, carried in the URL so Printful does not reuse a stale file"
-        }
-      }
-    },
-    "print_area": {
-      "type": "object",
-      "description": "Printable geometry from the catalog mockup styles, used to size artwork",
-      "fields": {
-        "width": {
-          "type": "float",
-          "description": "Print area width in inches"
-        },
-        "height": {
-          "type": "float",
-          "description": "Print area height in inches"
-        },
-        "dpi": {
-          "type": "int",
-          "description": "Print resolution reported by Printful for this product"
-        }
-      }
-    },
-    "artwork_url": {
-      "type": "string",
-      "description": "Print file used when the product has a single placement"
-    },
-    "artwork_hash": {
-      "type": "string",
-      "description": "Content hash of artwork_url. Printful dedupes print files by URL and will not refetch a URL it has already seen, so the hash must appear in the URL"
+    "date_synced": {
+      "type": "date",
+      "description": "When this product last matched Printful"
     }
   }
 }
