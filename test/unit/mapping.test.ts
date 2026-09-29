@@ -25,7 +25,7 @@ function driveCreate(orderItems: any[], links: VariantLink[]) {
 
   const get = vi.fn(async (url: string) => {
     if (url.startsWith("/settings/")) {
-      return { api_token: "token", store_id: "1" };
+      return { api_token: "token" };
     }
 
     if (url === "/orders/{id}") {

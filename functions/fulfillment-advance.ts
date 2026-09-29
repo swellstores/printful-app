@@ -271,7 +271,7 @@ export default async function (req: SwellRequest) {
     return;
   }
 
-  const printful = new Printful(settings.api_token, settings.store_id);
+  const printful = new Printful(settings.api_token);
 
   try {
     if (job.state === "pending") {

@@ -11,8 +11,8 @@ This app has no storefront of its own and needs none. Everything it produces lan
 ## Setup
 
 1. **Design your products in Printful.** In Printful, add a store of the *Manual order platform / API* type, then add products to it with Printful's design tools: pick a product, place your artwork, generate mockups and set your retail prices.
-2. **Create a Printful token.** In Printful, go to Settings → Developers and create a private token for that store with the `orders`, `sync_products` and `webhooks` scopes.
-3. **Paste it into the app.** In Swell, open Apps → Printful → Settings and enter the token. If it is an account-level token that can see more than one Printful store, also fill in the store ID.
+2. **Create a Printful token.** In Printful, go to Settings → Developers and create a private token with access to that store only, with the `orders`, `sync_products` and `webhooks` scopes. Account-wide tokens are not supported.
+3. **Paste it into the app.** In Swell, open Apps → Printful → Settings and enter the token.
 4. **Enable the carrier.** Go to Settings → Shipping. The Printful row appears there. Toggle it on and click **Save changes**.
 
    This step is not optional and installing the app does not do it for you. Until the carrier row is saved as enabled, Swell never asks the app for rates and checkout silently shows only your native shipping services.
@@ -44,8 +44,7 @@ This app has no storefront of its own and needs none. Everything it produces lan
 
 | Setting | What it does |
 | --- | --- |
-| Printful API token | Private token from Printful Settings → Developers, for your Manual order platform / API store. Use a separate token for your test environment. |
-| Printful store ID | Only needed for account-level tokens that can see more than one store. |
+| Printful API token | Private token from Printful Settings → Developers with access to your Manual order platform / API store only. Use a separate token for your test environment. |
 | Live fulfillment | Off: paid orders become Printful drafts and stop there. On: they are confirmed for production and charged. |
 | Fallback shipping rate | Flat rate offered when Printful is slow or rate-limited. Empty means offer nothing rather than a wrong price. |
 | Fallback service name | What that rate is called at checkout. |

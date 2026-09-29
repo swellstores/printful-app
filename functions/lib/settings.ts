@@ -1,6 +1,5 @@
 export interface PrintfulSettings {
   api_token?: string;
-  store_id?: string;
   live_fulfillment?: boolean;
   fallback_rate?: number;
   fallback_service_name?: string;

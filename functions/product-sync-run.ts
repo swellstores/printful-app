@@ -46,10 +46,7 @@ async function registerWebhook(
     options.url ||
     `${String(req.store.url).replace(/\/+$/, "")}/functions/${req.appId}/printful-webhook`;
 
-  const printful = new Printful(
-    settings.api_token as string,
-    settings.store_id,
-  );
+  const printful = new Printful(settings.api_token as string);
 
   const result = await printful.createWebhook({
     default_url: url,

@@ -202,10 +202,7 @@ export default async function (req: SwellRequest) {
   }
 
   const settings = await getSettings(req);
-  const printful = new Printful(
-    settings.api_token as string,
-    settings.store_id,
-  );
+  const printful = new Printful(settings.api_token as string);
   const data = event.data ?? {};
 
   try {

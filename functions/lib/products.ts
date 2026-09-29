@@ -769,7 +769,7 @@ export async function runProductSync(
   settings: PrintfulSettings,
   options: { budget?: number } = {},
 ): Promise<SyncResult> {
-  const printful = new Printful(settings.api_token as string, settings.store_id);
+  const printful = new Printful(settings.api_token as string);
 
   const budget: Budget = {
     used: 0,
@@ -874,7 +874,7 @@ export async function resyncProducts(
   products: any[],
   options: { replaceImages?: boolean } = {},
 ): Promise<ResyncResult> {
-  const printful = new Printful(settings.api_token as string, settings.store_id);
+  const printful = new Printful(settings.api_token as string);
 
   const budget: Budget = {
     used: 0,

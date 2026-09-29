@@ -122,11 +122,7 @@ export default async function (req: SwellRequest) {
     const timer = setTimeout(() => controller.abort(), remainingMs);
 
     try {
-      const printful = new Printful(
-        settings.api_token,
-        settings.store_id,
-        controller.signal,
-      );
+      const printful = new Printful(settings.api_token, controller.signal);
 
       const response = await printful.getShippingRates({
         recipient,
