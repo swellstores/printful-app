@@ -1,5 +1,5 @@
 import { PrintfulSettings } from "./lib/settings";
-import { planSync, retireRemoved, summarize, syncOne } from "./lib/products";
+import { planSync, recordSyncResult, retireRemoved, syncOne } from "./lib/products";
 import { PrintfulError } from "./lib/printful";
 import { toSwellRequest } from "./lib/workflow";
 
@@ -40,10 +40,6 @@ async function attempt<T>(fn: () => Promise<T>) {
  * now" action. Unlike the scheduled sync it is not cut short by the function
  * time limit: every new and changed product is synced, one step each, and
  * the step names are the progress merchants see.
- *
- * A workflow cannot call /settings paths, so it reads the settings through
- * `settings()` and cannot write them: the result is the run's own, shown with
- * the run rather than in the app settings.
  */
 export default class SyncProducts {
   async run(workflowRequest: SwellWorkflowRequest, step: SwellWorkflowStep) {
@@ -76,7 +72,11 @@ export default class SyncProducts {
       tally.listed = false;
       tally.errors.push(plan.error as string);
 
-      throw new Error(summarize(tally));
+      const summary = await step.do("Save the sync result", () =>
+        recordSyncResult(req, tally),
+      );
+
+      throw new Error(summary);
     }
 
     const { listed, queue } = plan.value;
@@ -102,6 +102,10 @@ export default class SyncProducts {
       retireRemoved(req, listed),
     );
 
-    return { message: summarize(tally) };
+    const summary = await step.do("Save the sync result", () =>
+      recordSyncResult(req, tally),
+    );
+
+    return { message: summary };
   }
 }

@@ -5,12 +5,18 @@ vi.mock("../../functions/lib/products", async (importOriginal) => ({
   planSync: vi.fn(),
   syncOne: vi.fn(),
   retireRemoved: vi.fn(),
+  recordSyncResult: vi.fn(),
 }));
 
 import SyncProducts from "../../functions/sync-products";
 import { toSwellRequest } from "../../functions/lib/workflow";
 import { PrintfulError } from "../../functions/lib/printful";
-import { planSync, retireRemoved, syncOne } from "../../functions/lib/products";
+import {
+  planSync,
+  recordSyncResult,
+  retireRemoved,
+  syncOne,
+} from "../../functions/lib/products";
 
 /** Runs every step straight away and records its name. */
 function fakeStep() {
@@ -53,6 +59,7 @@ beforeEach(() => {
   vi.mocked(planSync).mockReset();
   vi.mocked(syncOne).mockReset();
   vi.mocked(retireRemoved).mockReset().mockResolvedValue(0);
+  vi.mocked(recordSyncResult).mockReset().mockResolvedValue("summary");
 });
 
 describe("sync-products workflow", () => {
@@ -63,9 +70,8 @@ describe("sync-products workflow", () => {
     });
     vi.mocked(syncOne).mockResolvedValueOnce("created").mockResolvedValueOnce("updated");
     const { step, names } = fakeStep();
-    const request = workflowRequest({ api_token: "t" });
 
-    const result = await new SyncProducts().run(request, step);
+    const result = await new SyncProducts().run(workflowRequest({ api_token: "t" }), step);
 
     // Two products share a name; the counter keeps the step names unique.
     expect(names).toEqual([
@@ -74,24 +80,30 @@ describe("sync-products workflow", () => {
       "Sync Tee (1 of 2)",
       "Sync Tee (2 of 2)",
       "Take removed products off sale",
+      "Save the sync result",
     ]);
-    expect(result).toEqual({
-      message: "3 Printful products: 1 created, 1 updated, 0 taken off sale.",
+    expect(vi.mocked(recordSyncResult).mock.calls[0][1]).toEqual({
+      products: 3,
+      created: 1,
+      updated: 1,
+      retired: 0,
+      complete: true,
+      listed: true,
+      errors: [],
     });
-    // The runtime refuses /settings paths, so settings are neither read nor
-    // written through them.
-    expect(request.swell.get).not.toHaveBeenCalled();
-    expect(request.swell.put).not.toHaveBeenCalled();
+    expect(result).toEqual({ message: "summary" });
   });
 
-  it("reports a product that fails and carries on", async () => {
+  it("records a product that fails and carries on", async () => {
     vi.mocked(planSync).mockResolvedValue({ listed: [1], queue: [TEE] });
     vi.mocked(syncOne).mockRejectedValue(new Error("2 variant(s) could not be matched"));
     const { step } = fakeStep();
 
-    const result = await new SyncProducts().run(workflowRequest({ api_token: "t" }), step);
+    await new SyncProducts().run(workflowRequest({ api_token: "t" }), step);
 
-    expect(result.message).toContain("Errors: Tee: 2 variant(s) could not be matched");
+    expect(vi.mocked(recordSyncResult).mock.calls[0][1].errors).toEqual([
+      "Tee: 2 variant(s) could not be matched",
+    ]);
   });
 
   it("lets Printful's rate limit reach the step so it is retried", async () => {
@@ -104,13 +116,20 @@ describe("sync-products workflow", () => {
     ).rejects.toBeInstanceOf(PrintfulError);
   });
 
-  it("fails the run, saying why, when Printful cannot be read", async () => {
+  it("fails the run, and says why in the settings, when Printful cannot be read", async () => {
     vi.mocked(planSync).mockRejectedValue(new Error("The access token provided is invalid."));
+    vi.mocked(recordSyncResult).mockResolvedValue(
+      "Could not read your Printful products: The access token provided is invalid.",
+    );
     const { step } = fakeStep();
 
     await expect(
       new SyncProducts().run(workflowRequest({ api_token: "t" }), step),
     ).rejects.toThrow("Could not read your Printful products: The access token provided is invalid.");
+    expect(vi.mocked(recordSyncResult).mock.calls[0][1]).toMatchObject({
+      listed: false,
+      errors: ["The access token provided is invalid."],
+    });
     expect(syncOne).not.toHaveBeenCalled();
   });
 
