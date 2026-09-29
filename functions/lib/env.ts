@@ -11,7 +11,7 @@ declare global {
      * Runs the function from app actions in the Swell admin, with
      * `req.data.$action`. Not declared in @swell/app-types 1.2.4 yet.
      */
-    action?: {};
+    action?: Record<string, never>;
   }
 }
 
