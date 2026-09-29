@@ -1,5 +1,5 @@
-import { getSettings } from "./lib/settings";
-import { planSync, recordSyncResult, retireRemoved, syncOne } from "./lib/products";
+import { PrintfulSettings } from "./lib/settings";
+import { planSync, retireRemoved, summarize, syncOne } from "./lib/products";
 import { PrintfulError } from "./lib/printful";
 import { toSwellRequest } from "./lib/workflow";
 
@@ -40,12 +40,19 @@ async function attempt<T>(fn: () => Promise<T>) {
  * now" action. Unlike the scheduled sync it is not cut short by the function
  * time limit: every new and changed product is synced, one step each, and
  * the step names are the progress merchants see.
+ *
+ * A workflow cannot call /settings paths, so it reads the settings through
+ * `settings()` and cannot write them: the result is the run's own, shown with
+ * the run rather than in the app settings.
  */
 export default class SyncProducts {
   async run(workflowRequest: SwellWorkflowRequest, step: SwellWorkflowStep) {
     const req = toSwellRequest(workflowRequest);
 
-    const settings = await step.do("Read the app settings", () => getSettings(req));
+    // settings() answers every settings file of the app, keyed by its name
+    const settings: PrintfulSettings = await step.do("Read the app settings", async () =>
+      (await workflowRequest.swell.settings())?.printful ?? {},
+    );
 
     if (!settings.api_token) {
       throw new Error("Add your Printful API token in the app settings first.");
@@ -69,11 +76,7 @@ export default class SyncProducts {
       tally.listed = false;
       tally.errors.push(plan.error as string);
 
-      const summary = await step.do("Save the sync result", () =>
-        recordSyncResult(req, tally),
-      );
-
-      throw new Error(summary);
+      throw new Error(summarize(tally));
     }
 
     const { listed, queue } = plan.value;
@@ -99,10 +102,6 @@ export default class SyncProducts {
       retireRemoved(req, listed),
     );
 
-    const summary = await step.do("Save the sync result", () =>
-      recordSyncResult(req, tally),
-    );
-
-    return { message: summary };
+    return { message: summarize(tally) };
   }
 }

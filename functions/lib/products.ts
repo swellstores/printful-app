@@ -737,7 +737,7 @@ export interface SyncResult {
 
 type SyncTally = Omit<SyncResult, "summary" | "requests_used">;
 
-function summarize(result: SyncTally): string {
+export function summarize(result: SyncTally): string {
   if (!result.listed) {
     return `Could not read your Printful products: ${result.errors.join("; ")}`.slice(
       0,
