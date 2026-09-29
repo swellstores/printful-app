@@ -97,8 +97,18 @@ function toPrintfulError(response: Response, text: string): PrintfulError {
     // Non-JSON body (gateway HTML, empty 502) — keep the raw text.
   }
 
+  // Printful's answer to an account-wide token, which would need to be told
+  // which store to use. The app takes store-level tokens only.
+  if (/requires `?store_id/i.test(message)) {
+    message = ACCOUNT_TOKEN_MESSAGE;
+  }
+
   return new PrintfulError(message, response.status, code, retryAfter);
 }
+
+export const ACCOUNT_TOKEN_MESSAGE =
+  "This Printful token is for your whole account. Create a token with access " +
+  "to your Manual order platform / API store only, and paste it in the app settings.";
 
 function withQuery(path: string, query: Record<string, string | number>) {
   const params = new URLSearchParams();
