@@ -11,7 +11,7 @@ This app has no storefront of its own and needs none. Everything it produces lan
 ## Setup
 
 1. **Design your products in Printful.** In Printful, add a store of the *Manual order platform / API* type, then add products to it with Printful's design tools: pick a product, place your artwork, generate mockups and set your retail prices.
-2. **Create a Printful token.** In Printful, go to Settings → Developers and create a private token with access to that store only, with the `orders`, `sync_products` and `webhooks` scopes. Account-wide tokens are not supported.
+2. **Create a Printful token.** In Printful, go to Settings → Developers and create a private token with access to that store only, with the `orders` and `sync_products` scopes. Account-wide tokens are not supported.
 3. **Paste it into the app.** In Swell, open Apps → Printful → Settings and enter the token.
 4. **Enable the carrier.** Go to Settings → Shipping. The Printful row appears there. Toggle it on and click **Save changes**.
 
@@ -50,15 +50,15 @@ This app has no storefront of its own and needs none. Everything it produces lan
 | Fallback service name | What that rate is called at checkout. |
 | Quote cache lifetime | How long a quote is reused for the same destination and cart. Printful allows 120 requests a minute across everything the app does, so this is what keeps checkout inside the budget. |
 | Rate request timeout | How long to wait for a quote before falling back. The function itself is killed at 10 seconds. |
-| Webhook secret / public key | Written by the app when it registers with Printful. Read-only — re-registering rotates them. |
 | Last product sync / Last sync result | Written by the sync after every run. Read-only. |
 
 ## Things worth knowing
 
 - **Printful order confirmation is the charge point.** Creating a draft is free; confirming it bills your Printful account. The app confirms only when live fulfillment is on and it is running in the live environment.
 - **Printful prints what you designed there.** Orders reference the Printful product variant, so Printful uses the print files stored with your design. Change a design in Printful and later orders print the new version.
-- **Print files are validated after confirmation.** An order can be accepted and then fail. The app subscribes to Printful's failure event and surfaces it on the order.
-- **Cancellations are reported, not acted on.** If an order is canceled or refunded at Printful, the app records it and notifies you. It does not cancel or refund the Swell order for you.
+- **Confirmed orders are checked every 10 minutes until they ship.** Shipments and tracking numbers reach the Swell order within about 10 minutes of Printful shipping them. There is nothing to register in Printful.
+- **Print files are validated after confirmation.** An order can be accepted and then fail. The next check marks it failed on the Swell order and emails your store admins; Printful's dashboard shows why it failed.
+- **Cancellations are reported, not acted on.** If an order is canceled at Printful, the Printful tab on the Swell order shows it. The app does not cancel or refund the Swell order for you.
 
 ## Support
 

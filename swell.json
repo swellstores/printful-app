@@ -40,7 +40,7 @@
 		{
 			"id": "problems-where-you-work",
 			"title": "Problems show up where you work",
-			"description": "Failures show the reason on the Swell order, email your admins, and retry when you set the fulfillment job back to Pending.",
+			"description": "Rejected orders are flagged on the Swell order and emailed to your admins, and retry when you set the fulfillment job back to Pending.",
 			"image_src": "assets/screenshots/4-problems-where-you-work.png"
 		}
 	]

@@ -1,6 +1,6 @@
 {
   "label": "Printful",
-  "description": "1. In Printful, add a Manual order platform / API store and design your products in it. 2. Open Settings → Developers and create a private token with access to that store only (not your whole account), with the 'orders', 'sync_products' and 'webhooks' scopes. 3. Paste it below and save, then choose Actions → Sync products now. Your products arrive in Swell as drafts to review, and an hourly sync keeps them up to date. 4. Enable the carrier in Settings → Shipping → Printful, then click Save changes — rates do not dispatch until you do. 5. Leave Live fulfillment off until you have inspected a draft order in the Printful dashboard.",
+  "description": "1. In Printful, add a Manual order platform / API store and design your products in it. 2. Open Settings → Developers and create a private token with access to that store only (not your whole account), with the 'orders' and 'sync_products' scopes. 3. Paste it below and save, then choose Actions → Sync products now. Your products arrive in Swell as drafts to review, and an hourly sync keeps them up to date. 4. Enable the carrier in Settings → Shipping → Printful, then click Save changes — rates do not dispatch until you do. 5. Leave Live fulfillment off until you have inspected a draft order in the Printful dashboard.",
   "actions": [
     {
       "id": "sync_now",
@@ -20,7 +20,7 @@
       "id": "api_token",
       "label": "Printful API token",
       "type": "text",
-      "description": "Private token from Printful Settings → Developers with access to your Manual order platform / API store only; account-wide tokens are not supported. Needs the 'orders', 'sync_products' and 'webhooks' scopes. Use a separate token for your test environment."
+      "description": "Private token from Printful Settings → Developers with access to your Manual order platform / API store only; account-wide tokens are not supported. Needs the 'orders' and 'sync_products' scopes. Use a separate token for your test environment."
     },
     {
       "id": "live_fulfillment",
@@ -62,20 +62,6 @@
       "max": 9000,
       "unit": "ms",
       "description": "How long to wait for a Printful quote before falling back. The whole function is killed at 10000ms, so keep this below 9000."
-    },
-    {
-      "id": "webhook_secret",
-      "label": "Webhook secret key",
-      "type": "text",
-      "readonly": true,
-      "description": "Written by the app when it registers the Printful webhook. Printful shows this value once and re-registering rotates it, so do not edit or clear it by hand."
-    },
-    {
-      "id": "webhook_public_key",
-      "label": "Webhook public key",
-      "type": "text",
-      "readonly": true,
-      "description": "Written by the app alongside the secret key. Used to confirm inbound events came from this webhook registration."
     },
     {
       "id": "last_sync_at",

@@ -3,10 +3,19 @@ import { getSettings, PrintfulSettings } from "./lib/settings";
 import { canFulfillLive } from "./lib/env";
 import { getVariantLinks, toOrderItems, toRecipient } from "./lib/mapping";
 import { toPrintfulShipping } from "./lib/rates";
+import {
+  FAILED_MESSAGE,
+  FINISHED_STATUSES,
+  SHIPPED_STATUSES,
+  recordShipments,
+} from "./lib/tracking";
 
 const MAX_ATTEMPTS = 8;
 const BASE_BACKOFF_SECONDS = 30;
 const MAX_BACKOFF_SECONDS = 3600;
+
+// How often a confirmed order is checked for shipments and failures.
+const TRACK_INTERVAL_SECONDS = 600;
 
 const HOLD_MESSAGE =
   "Held as a draft: live fulfillment is off, or this is not the live environment. " +
@@ -14,7 +23,7 @@ const HOLD_MESSAGE =
 
 export const config: SwellConfig = {
   description:
-    "Advance a Printful fulfillment job: create the draft, wait for costs, confirm",
+    "Advance a Printful fulfillment job: create the draft, wait for costs, confirm, then track it until it ships",
   model: {
     events: ["fulfillment.created", "fulfillment.updated"],
     schedule: { formula: "date_next_attempt" },
@@ -29,6 +38,10 @@ function nextAttempt(attempts: number, err?: unknown): string {
     Math.min(BASE_BACKOFF_SECONDS * 2 ** attempts, MAX_BACKOFF_SECONDS);
 
   return new Date(Date.now() + seconds * 1000).toISOString();
+}
+
+function nextCheck(): string {
+  return new Date(Date.now() + TRACK_INTERVAL_SECONDS * 1000).toISOString();
 }
 
 /** The API returns no dashboard link, so it is derived from the order id. */
@@ -59,7 +72,7 @@ function saveJob(req: SwellRequest, job: any, values: object) {
  * that read and the write, one round trip wide.
  *
  * That window is far shorter than the interval at which duplicate deliveries
- * actually arrive — a retried webhook or a scheduled tick is seconds to minutes
+ * actually arrive — a redelivered event or a scheduled tick is seconds to minutes
  * behind, not microseconds — so this collapses ordinary duplicates. It does not
  * close true concurrency.
  *
@@ -94,7 +107,12 @@ function mirrorOrder(req: SwellRequest, orderId: string, values: object) {
   return req.swell.put(`/orders/${orderId}`, req.appValues(values));
 }
 
-async function fail(req: SwellRequest, job: any, message: string) {
+async function fail(
+  req: SwellRequest,
+  job: any,
+  message: string,
+  orderValues: object = {},
+) {
   await saveJob(req, job, {
     state: "failed",
     last_error: message,
@@ -104,6 +122,7 @@ async function fail(req: SwellRequest, job: any, message: string) {
   await mirrorOrder(req, job.order_id, {
     submit_state: "failed",
     last_error: message,
+    ...orderValues,
   });
 }
 
@@ -205,11 +224,13 @@ async function advanceDraft(
 
   const confirmed = await printful.confirmOrder(job.external_id);
 
+  // Confirmed orders are checked for shipments and failures until they ship
   await saveJob(req, job, {
     state: "confirmed",
+    printful_status: confirmed?.status ?? "pending",
     attempts: 0,
     last_error: null,
-    date_next_attempt: null,
+    date_next_attempt: nextCheck(),
   });
 
   await mirrorOrder(req, job.order_id, {
@@ -220,6 +241,46 @@ async function advanceDraft(
     submit_state: "confirmed",
     last_error: null,
   });
+}
+
+/**
+ * Checks a confirmed order: adds shipments that have shipped to the Swell
+ * order, and fails the job if Printful rejected it. Printful can reject an
+ * order after confirmation, when it validates the print files. The order's
+ * status is only written when it changes, so an order in production is not
+ * rewritten every check.
+ */
+async function track(req: SwellRequest, printful: Printful, job: any) {
+  const order = await printful.getOrderByExternalId(job.external_id);
+
+  if (!order) {
+    return saveJob(req, job, {
+      date_next_attempt: null,
+      last_error: "The Printful order no longer exists",
+    });
+  }
+
+  if (order.status === "failed") {
+    return fail(req, job, FAILED_MESSAGE, { printful_status: "failed" });
+  }
+
+  if (SHIPPED_STATUSES.has(order.status)) {
+    await recordShipments(
+      req,
+      job.order_id,
+      await printful.listShipments(String(order.id)),
+    );
+  }
+
+  await saveJob(req, job, {
+    printful_status: order.status,
+    last_error: null,
+    date_next_attempt: FINISHED_STATUSES.has(order.status) ? null : nextCheck(),
+  });
+
+  if (order.status !== job.printful_status) {
+    await mirrorOrder(req, job.order_id, { printful_status: order.status });
+  }
 }
 
 async function backOff(req: SwellRequest, job: any, err: unknown) {
@@ -240,7 +301,7 @@ async function backOff(req: SwellRequest, job: any, err: unknown) {
 export default async function (req: SwellRequest) {
   const job = req.data;
 
-  if (job.state === "confirmed" || job.state === "failed") {
+  if (job.state === "failed") {
     return;
   }
 
@@ -272,6 +333,25 @@ export default async function (req: SwellRequest) {
   }
 
   const printful = new Printful(settings.api_token);
+
+  if (job.state === "confirmed") {
+    if (!(await claim(req, job, "confirmed", "confirmed"))) {
+      return;
+    }
+
+    try {
+      await track(req, printful, job);
+    } catch (err) {
+      // The order is already in production: an error checking on it is only
+      // reported, and the next check tries again. It must not fail the job.
+      await saveJob(req, job, {
+        last_error: err instanceof Error ? err.message : String(err),
+        date_next_attempt: nextCheck(),
+      });
+    }
+
+    return;
+  }
 
   try {
     if (job.state === "pending") {

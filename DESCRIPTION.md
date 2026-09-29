@@ -9,7 +9,7 @@ Design your products in Printful, with its own design tools, mockups and pricing
 
 **Try it before it costs anything.** Live fulfillment starts switched off. Until you turn it on, orders reach Printful as unconfirmed drafts, so nothing is printed and nothing is charged. Place a test order, open the draft in Printful, check the sizes and print files, then flip the switch.
 
-**Problems show up where you work.** If Printful rejects an order or a print file fails its checks, the reason appears on the Swell order and you get an email. A Failed view lists every stuck submission, and retrying one takes a single field change. When an order is canceled or refunded at Printful, you're told about it, and your Swell order is left for you to decide.
+**Problems show up where you work.** If Printful rejects an order, even after accepting it when a print file fails its checks, the Swell order is marked failed and you get an email. A Failed view lists every stuck submission, and retrying one takes a single field change. When an order is canceled at Printful, the Swell order shows it, and what happens next is up to you.
 
 **Works with any storefront.** The app adds no storefront of its own and needs none. Rates, shipments and tracking all live on standard Swell records, so any theme or storefront app you sell through shows them without knowing the app is installed.
 

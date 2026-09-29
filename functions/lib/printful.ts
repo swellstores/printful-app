@@ -79,8 +79,8 @@ function toPrintfulError(response: Response, text: string): PrintfulError {
     const body = JSON.parse(text);
 
     // v2 is inconsistent by endpoint, not by version: shipping rates and some
-    // catalog operations answer with RFC 9457, while order, shipment and
-    // webhook operations still answer with the legacy envelope. Branch on the
+    // catalog operations answer with RFC 9457, while order and shipment
+    // operations still answer with the legacy envelope. Branch on the
     // content type rather than on the path.
     if (contentType.includes("application/problem+json")) {
       message = [body.title, body.detail].filter(Boolean).join(" - ") || message;
@@ -249,16 +249,5 @@ export default class Printful {
       `/v2/orders/${printfulOrderId}/shipments`,
     );
     return result?.data ?? [];
-  }
-
-  /**
-   * Destructive singleton: one webhook configuration exists per token, and
-   * registering replaces the previous one and rotates its key pair. The
-   * `secret_key` in the response is shown once.
-   */
-  async createWebhook(body: object) {
-    const result = await this.request("POST", "/v2/webhooks", body);
-    // Webhook endpoints answer with {code, result, extra}, not {data}.
-    return result?.result ?? result?.data ?? null;
   }
 }
