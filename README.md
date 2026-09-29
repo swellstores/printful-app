@@ -16,7 +16,7 @@ This app has no storefront of its own and needs none. Everything it produces lan
 4. **Enable the carrier.** Go to Settings → Shipping. The Printful row appears there. Toggle it on and click **Save changes**.
 
    This step is not optional and installing the app does not do it for you. Until the carrier row is saved as enabled, Swell never asks the app for rates and checkout silently shows only your native shipping services.
-5. **Sync your products.** On the app page, choose **Actions → Sync products now**, or wait for the hourly sync. Each Printful product becomes a Swell product with its colors and sizes as variants, Printful's mockups as photos and your Printful retail prices. Products arrive as drafts: check the name, description and prices, then make them active.
+5. **Sync your products.** On the app page, choose **Actions → Sync products now**, or wait for the hourly sync. It runs in the background, one product at a time, and the app page shows its progress. Each Printful product becomes a Swell product with its colors and sizes as variants, Printful's mockups as photos and your Printful retail prices. Products arrive as drafts: check the name, description and prices, then make them active.
 6. **Place a test order.** With live fulfillment off, the order appears in the Printful dashboard as an unconfirmed draft. Open it from the Printful tab on the Swell order and check the items, sizes and print files.
 7. **Turn on live fulfillment** in the app settings once that draft looks right.
 

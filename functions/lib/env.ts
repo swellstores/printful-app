@@ -13,6 +13,11 @@ declare global {
      */
     action?: Record<string, never>;
   }
+
+  interface SwellWorkflowConfig {
+    /** Starts a run from app actions. Not declared in @swell/app-types 1.2.4 yet. */
+    action?: Record<string, never>;
+  }
 }
 
 /**

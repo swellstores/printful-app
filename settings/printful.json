@@ -5,9 +5,9 @@
     {
       "id": "sync_now",
       "label": "Sync products now",
-      "function": "sync-now",
-      "hint": "Reads your Printful products now instead of waiting for the hourly sync.",
-      "loading_label": "Syncing products from Printful…",
+      "function": "sync-products",
+      "hint": "Syncs all your Printful products in the background instead of waiting for the hourly sync.",
+      "loading_label": "Starting the Printful sync…",
       "conditions": {
         "api_token": {
           "$ne": null

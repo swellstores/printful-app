@@ -344,7 +344,7 @@ function hasBudget(budget: Budget, cost = 1): boolean {
   return budget.used + cost <= budget.limit && Date.now() < budget.deadline;
 }
 
-interface SwellProductState {
+export interface SwellProductState {
   id: string;
   price?: number | null;
   options?: SwellOption[];
@@ -735,7 +735,9 @@ export interface SyncResult {
   errors: string[];
 }
 
-function summarize(result: SyncResult): string {
+type SyncTally = Omit<SyncResult, "summary" | "requests_used">;
+
+function summarize(result: SyncTally): string {
   if (!result.listed) {
     return `Could not read your Printful products: ${result.errors.join("; ")}`.slice(
       0,
@@ -757,6 +759,77 @@ function summarize(result: SyncResult): string {
   }
 
   return parts.join(" ").slice(0, 1000);
+}
+
+/** Shows what a sync did in the app settings, and returns that summary. */
+export async function recordSyncResult(
+  req: SwellRequest,
+  result: SyncTally,
+): Promise<string> {
+  const summary = summarize(result);
+
+  await putSettings(req, {
+    last_sync_at: new Date().toISOString(),
+    last_sync_result: summary,
+  });
+
+  return summary;
+}
+
+// A workflow step has minutes rather than seconds, and Printful's rate limit
+// is handled by retrying the step, so a workflow sync runs without a budget.
+function unlimited(): Budget {
+  return { used: 0, limit: Infinity, deadline: Infinity };
+}
+
+export interface PlannedProduct {
+  summary: SyncProductSummary;
+  existing?: SwellProductState;
+}
+
+/**
+ * The whole Printful listing and the products to sync from it, new and
+ * changed ones first. Plain data, so a workflow step can record it.
+ */
+export async function planSync(
+  req: SwellRequest,
+  settings: PrintfulSettings,
+): Promise<{ listed: number[]; queue: PlannedProduct[] }> {
+  const printful = new Printful(settings.api_token as string);
+  const { products: listing } = await listSyncProducts(printful, unlimited());
+  const products = listing.filter((product) => !product.is_ignored);
+  const state = await getLinkedProducts(
+    req,
+    products.map((product) => Number(product.id)),
+  );
+
+  return {
+    listed: products.map((product) => Number(product.id)),
+    queue: prioritize(products, state).queue.map((product) => ({
+      summary: { id: product.id, name: product.name, variants: product.variants },
+      existing: state.get(Number(product.id)),
+    })),
+  };
+}
+
+/** Syncs one planned product; see `planSync`. */
+export function syncOne(
+  req: SwellRequest,
+  settings: PrintfulSettings,
+  product: PlannedProduct,
+) {
+  return syncProduct(
+    req,
+    new Printful(settings.api_token as string),
+    unlimited(),
+    product.summary,
+    product.existing,
+  );
+}
+
+/** Takes products gone from a complete Printful listing off sale. */
+export function retireRemoved(req: SwellRequest, listed: number[]) {
+  return retireMissing(req, new Set(listed));
 }
 
 /**
@@ -843,12 +916,7 @@ export async function runProductSync(
   }
 
   result.requests_used = budget.used;
-  result.summary = summarize(result);
-
-  await putSettings(req, {
-    last_sync_at: new Date().toISOString(),
-    last_sync_result: result.summary,
-  });
+  result.summary = await recordSyncResult(req, result);
 
   return result;
 }
