@@ -131,11 +131,10 @@ describe("product-resync", () => {
     });
 
     let productsQuery: any;
-    const selectionWhere = {
-      categories: "c1",
-      $and: [{ id: { $nin: ["p9"] } }],
-    };
+    const listWhere = { active: true };
 
+    // Select all in a filtered list, with one row unchecked: the list's own
+    // query, and a top-level $and that excludes the unchecked row
     const req = request(
       {
         replace_images: true,
@@ -146,7 +145,12 @@ describe("product-resync", () => {
             all: true,
             except_ids: ["p9"],
             count: 20,
-            query: { search: "tee", where: selectionWhere },
+            query: {
+              search: "tee",
+              categories: "c1",
+              where: listWhere,
+              $and: [{ id: { $nin: ["p9"] } }],
+            },
           },
         },
       },
@@ -165,11 +169,10 @@ describe("product-resync", () => {
     // The list query is kept whole, and only narrowed to Printful products.
     expect(productsQuery).toEqual({
       search: "tee",
+      categories: "c1",
+      $and: [{ id: { $nin: ["p9"] } }],
       where: {
-        $and: [
-          selectionWhere,
-          { "$app.printful.sync_product_id": { $ne: null } },
-        ],
+        $and: [listWhere, { "$app.printful.sync_product_id": { $ne: null } }],
       },
       sort: "$app.printful.date_synced asc",
       limit: 10,

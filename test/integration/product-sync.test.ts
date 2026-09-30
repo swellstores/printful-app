@@ -112,6 +112,22 @@ describe.skipIf(!available)("product sync against Swell", { timeout: 60000 }, ()
     );
   };
 
+  const swell = createSwellClient();
+
+  // The action function reads the app settings itself; the test store has
+  // no Printful token, so those reads are answered here.
+  const run = (data: object) =>
+    productResync(
+      createMockRequest({
+        data: data as SwellData,
+        swell: {
+          ...swell,
+          get: (url: string, query?: any) =>
+            url.startsWith("/settings/") ? Promise.resolve(settings) : swell.get(url, query),
+        },
+      }),
+    );
+
   afterAll(async () => {
     vi.restoreAllMocks();
 
@@ -162,28 +178,17 @@ describe.skipIf(!available)("product sync against Swell", { timeout: 60000 }, ()
   });
 
   it("resyncs selected products, replacing photos only when asked", async () => {
-    const swell = createSwellClient();
-
-    // The action function reads the app settings itself; the test store has
-    // no Printful token, so those reads are answered here.
-    const run = (data: object) =>
-      productResync(
-        createMockRequest({
-          data: data as SwellData,
-          swell: {
-            ...swell,
-            get: (url: string, query?: any) =>
-              url.startsWith("/settings/") ? Promise.resolve(settings) : swell.get(url, query),
-          },
-        }),
-      );
-
-    // The selection exactly as the platform builds it for two checked rows
+    // Two rows checked in an unfiltered list, as the admin sends them: the
+    // list's own query, narrowed to the checked rows by a top-level $and.
+    // One of the two is not a Printful product.
     const selection = {
       all: false,
       ids: [productId, "000000000000000000000000"],
       count: 2,
-      query: { where: { id: { $in: [productId, "000000000000000000000000"] } } },
+      query: {
+        where: {},
+        $and: [{ id: { $in: [productId, "000000000000000000000000"] } }],
+      },
     };
     const photos = async () =>
       ((await req.swell.get(`/products/${productId}`))?.images ?? []).map(
@@ -210,6 +215,34 @@ describe.skipIf(!available)("product sync against Swell", { timeout: 60000 }, ()
       "https://files.cdn.printful.com/files/test/Black.png",
       "https://files.cdn.printful.com/files/test/White.png",
     ]);
+  });
+
+  it("resyncs every row of a select-all selection except the unchecked ones", async () => {
+    // Select all in a list filtered to the test product. The admin adds an
+    // id condition only when rows were unchecked after selecting all.
+    const selectAll = (exceptIds: string[]) => ({
+      all: true,
+      count: 1 - exceptIds.length,
+      except_ids: exceptIds,
+      query: {
+        where: { name: NAME },
+        ...(exceptIds.length > 0 && { $and: [{ id: { $nin: exceptIds } }] }),
+      },
+    });
+
+    await expect(
+      run({ $action: { id: "resync_selected", source: "bulk", selection: selectAll([]) } }),
+    ).resolves.toEqual({ message: "Resynced 1 product from Printful." });
+
+    await expect(
+      run({
+        $action: {
+          id: "resync_selected",
+          source: "bulk",
+          selection: selectAll([productId as string]),
+        },
+      }),
+    ).rejects.toThrow("None of these products came from Printful.");
   });
 
   it("takes a variant removed in Printful off sale", async () => {
