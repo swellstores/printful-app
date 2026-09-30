@@ -3,13 +3,11 @@ import { createMockRequest } from "../helpers/mock-request";
 
 vi.mock("../../functions/lib/products", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../functions/lib/products")>()),
-  runProductSync: vi.fn(),
   resyncProducts: vi.fn(),
 }));
 
-import { post as syncNow } from "../../functions/sync-now";
 import { post as productResync } from "../../functions/product-resync";
-import { runProductSync, resyncProducts } from "../../functions/lib/products";
+import { resyncProducts } from "../../functions/lib/products";
 
 const SETTINGS = { api_token: "token" };
 
@@ -20,77 +18,8 @@ function request(data: object, get: (url: string, query?: any) => any) {
   });
 }
 
-function settingsOnly(settings: object) {
-  return (url: string) => {
-    if (url.startsWith("/settings/")) return settings;
-    throw new Error(`unexpected get: ${url}`);
-  };
-}
-
-function syncResult(overrides: object = {}) {
-  return {
-    products: 3,
-    created: 1,
-    updated: 0,
-    retired: 0,
-    requests_used: 4,
-    complete: true,
-    listed: true,
-    summary: "3 Printful products: 1 created, 0 updated, 0 taken off sale.",
-    errors: [],
-    ...overrides,
-  };
-}
-
 beforeEach(() => {
-  vi.mocked(runProductSync).mockReset();
   vi.mocked(resyncProducts).mockReset();
-});
-
-describe("sync-now", () => {
-  it("asks for a token before syncing", async () => {
-    const req = request({ $action: { id: "sync_now" } }, settingsOnly({}));
-
-    await expect(syncNow(req)).rejects.toMatchObject({
-      status: 400,
-      message: "Add your Printful API token in the app settings first.",
-    });
-    expect(runProductSync).not.toHaveBeenCalled();
-  });
-
-  it("shows the sync summary", async () => {
-    vi.mocked(runProductSync).mockResolvedValue(syncResult());
-    const req = request({ $action: { id: "sync_now" } }, settingsOnly(SETTINGS));
-
-    await expect(syncNow(req)).resolves.toEqual({
-      message: "3 Printful products: 1 created, 0 updated, 0 taken off sale.",
-    });
-    expect(vi.mocked(runProductSync).mock.calls[0][2]).toEqual({ budget: undefined });
-  });
-
-  it("caps the budget entered in the modal", async () => {
-    vi.mocked(runProductSync).mockResolvedValue(syncResult());
-    const req = request({ budget: 500, $action: { id: "sync_now" } }, settingsOnly(SETTINGS));
-
-    await syncNow(req);
-
-    expect(vi.mocked(runProductSync).mock.calls[0][2]).toEqual({ budget: 60 });
-  });
-
-  it("fails when the Printful products could not be read", async () => {
-    vi.mocked(runProductSync).mockResolvedValue(
-      syncResult({
-        listed: false,
-        summary: "Could not read your Printful products: The access token provided is invalid.",
-      }),
-    );
-    const req = request({ $action: { id: "sync_now" } }, settingsOnly(SETTINGS));
-
-    await expect(syncNow(req)).rejects.toMatchObject({
-      status: 400,
-      message: "Could not read your Printful products: The access token provided is invalid.",
-    });
-  });
 });
 
 describe("product-resync", () => {

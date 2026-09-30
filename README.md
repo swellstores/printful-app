@@ -22,14 +22,14 @@ This app has no storefront of its own and needs none. Everything it produces lan
 
 ## Keeping products in sync
 
-- **Hourly, or when you ask.** The sync runs every hour. To pull changes in right away, use **Sync products now** on the app page or **Sync from Printful** in the Products list's Actions menu. To re-read particular products even when Printful's list shows no change, use **Resync from Printful** on a product, or on products selected in the list.
+- **Hourly, or when you ask.** The sync runs every hour and keeps your products current. To pull changes in right away, use **Sync products now** on the app page, **Sync now** in the app settings, or **Sync from Printful** in the Products list's Actions menu. Each one syncs every new and changed product in the background, and the app's Runs tab shows its progress. To re-read particular products even when Printful's list shows no change, use **Resync from Printful** on a product, or on products selected in the list.
 - **Printful owns the design and the variants.** Add a color or size in Printful and the sync adds the variant in Swell; remove or discontinue one and it is taken off sale. A product deleted or ignored in Printful is taken off sale in Swell and kept for order history.
 - **To stop selling a product, delete or ignore it in Printful.** Deleting it only in Swell does not stop the sync: the next run creates it again as a draft.
 - **Swell owns what shoppers see.** After the first sync, the name, description, prices and photos are yours to edit, and the sync never overwrites them. A variant added later gets its Printful retail price when it is first linked. To bring in new mockups after changing a design, resync the product and choose **Replace photos with Printful mockups**.
 - **Combinations Printful does not make are switched off.** Swell builds a variant for every color and size combination; the ones Printful does not offer, such as a color that stops at XL, are made inactive.
 - **Prices are copied as numbers.** If your Printful store and your Swell store use different currencies, set the prices in Swell.
 - **Mockups are linked, not copied.** Product photos point at Printful's CDN.
-- **A large store syncs over several runs.** Each run spends a small share of Printful's rate limit, which checkout also uses, and handles new products first. Run a sync or resync again to continue where it stopped. Scripts can start a sync with `swell api post '/functions/printful/product-sync-run'`.
+- **The hourly sync works in batches.** Each hourly run spends a small share of Printful's rate limit, which checkout also uses, and handles new products first, so a large store catches up over several runs. A manual sync handles every new and changed product in one background run, waiting whenever Printful's rate limit is reached. **Resync from Printful** handles up to 10 products per run; run it again to continue. Scripts can start a batch with `swell api post '/functions/printful/product-sync-run'`.
 
 ## What the merchant sees
 

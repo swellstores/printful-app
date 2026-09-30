@@ -78,12 +78,12 @@
       "description": "What the last sync did, and any errors — for example a token without the 'sync_products' scope."
     },
     {
-      "id": "sync_now_button",
+      "id": "sync_now",
       "type": "action",
       "label": "Sync now",
-      "function": "sync-now",
-      "hint": "Reads your Printful products now instead of waiting for the hourly sync.",
-      "loading_label": "Syncing products from Printful…",
+      "function": "sync-products",
+      "hint": "Syncs all your Printful products in the background instead of waiting for the hourly sync.",
+      "loading_label": "Starting the Printful sync…",
       "conditions": {
         "api_token": {
           "$ne": null
