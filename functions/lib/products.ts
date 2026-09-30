@@ -693,9 +693,12 @@ async function syncProduct(
   // Written last: a run cut off before this point leaves the count unset, so
   // the next run treats the product as changed and finishes it. A resync has
   // no list entry to count from, so it counts the variants it just read.
+  // The Printful id goes with them: an app's write of its values can replace
+  // the ones it wrote before, and the next run finds the product by that id.
   await req.swell.put(
     `/products/${product.id}`,
     req.appValues({
+      sync_product_id: syncProductId,
       sync_variant_count: summary.variants ?? detail.sync_variants.length,
       date_synced,
     }),
