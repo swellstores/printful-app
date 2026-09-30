@@ -14,7 +14,6 @@ const DEFAULT_REQUEST_BUDGET = 30;
 // seconds, so no new product is started after this.
 const TIME_BUDGET_MS = 5000;
 
-const TRANSACTION_SIZE = 10;
 const MAX_IMAGES = 10;
 const MAX_ROWS = 1000;
 
@@ -498,9 +497,20 @@ async function getLinks(req: SwellRequest, where: object) {
   return result?.results ?? [];
 }
 
-async function runOps(req: SwellRequest, ops: any[]) {
-  for (let i = 0; i < ops.length; i += TRANSACTION_SIZE) {
-    await req.swell.transaction(ops.slice(i, i + TRANSACTION_SIZE));
+interface LinkOp {
+  method: "post" | "put" | "delete";
+  url: string;
+  data?: object;
+}
+
+/**
+ * Writes link changes one call at a time. A run cut off partway leaves some
+ * of them written; the next run reads the links again before writing, so it
+ * picks up where this one stopped instead of repeating it.
+ */
+async function runOps(req: SwellRequest, ops: LinkOp[]) {
+  for (const op of ops) {
+    await req.swell[op.method](op.url, op.data);
   }
 }
 

@@ -144,13 +144,12 @@ describe("sync-products workflow", () => {
 });
 
 describe("toSwellRequest", () => {
-  it("adds appValues and runs transaction operations one by one", async () => {
-    const calls: string[] = [];
+  it("adds appValues and passes the workflow's client through", () => {
     const swell = {
       get: vi.fn(),
-      post: vi.fn(async (url: string) => calls.push(`post ${url}`)),
-      put: vi.fn(async (url: string) => calls.push(`put ${url}`)),
-      delete: vi.fn(async (url: string) => calls.push(`delete ${url}`)),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
       settings: vi.fn(),
     };
     const req = toSwellRequest({ appId: "printful", swell } as unknown as SwellWorkflowRequest);
@@ -158,17 +157,6 @@ describe("toSwellRequest", () => {
     expect(req.appValues({ date_synced: "now" })).toEqual({
       $app: { printful: { date_synced: "now" } },
     });
-
-    await req.swell.transaction([
-      { method: "post", url: "/apps/printful/sync-variants", data: {} },
-      { method: "put", url: "/apps/printful/sync-variants/1", data: {} },
-      { method: "delete", url: "/apps/printful/sync-variants/2" },
-    ]);
-
-    expect(calls).toEqual([
-      "post /apps/printful/sync-variants",
-      "put /apps/printful/sync-variants/1",
-      "delete /apps/printful/sync-variants/2",
-    ]);
+    expect(req.swell).toBe(swell);
   });
 });

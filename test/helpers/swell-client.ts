@@ -2,10 +2,7 @@ import { env } from "cloudflare:test";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
-type BasicSwellClient = Pick<
-  SwellAPI,
-  "get" | "post" | "put" | "delete" | "settings" | "transaction"
->;
+type BasicSwellClient = Pick<SwellAPI, "get" | "post" | "put" | "delete" | "settings">;
 
 async function makeRequest(
   method: HttpMethod,
@@ -108,9 +105,6 @@ export function createSwellClient(): BasicSwellClient {
     },
     delete(url: string, data?: any) {
       return makeRequest("DELETE", url, data);
-    },
-    transaction(ops: Array<{ method: string; url: string; data?: any }>) {
-      return makeRequest("POST", "/:transaction", ops);
     },
     settings(id?: string) {
       const appId = id || env.SWELL_APP_ID;
