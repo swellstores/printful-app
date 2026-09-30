@@ -7,6 +7,13 @@ export interface PrintfulSettings {
   rate_timeout_ms?: number;
   last_sync_at?: string;
   last_sync_result?: string;
+  sync_lease?: SyncLease | null;
+}
+
+/** The product sync that is running, if any; see lib/lease. */
+export interface SyncLease {
+  owner: string;
+  until: string;
 }
 
 /**

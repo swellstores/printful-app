@@ -88,9 +88,44 @@ function mockPrintful() {
 
 const available = Boolean(env.SWELL_SESSION_ID);
 
+/**
+ * The suite runs the real sync against the logged-in store, and a sync takes
+ * every product its (faked) Printful listing lacks off sale, and records its
+ * result in the app settings. So it only runs on a store with nothing synced
+ * from Printful except what an earlier run of this suite left behind.
+ */
+async function syncedFromPrintful(): Promise<string | undefined> {
+  const req = createMockRequest({ useRealSwell: true });
+  const theirs = (rows: any) =>
+    (rows?.results ?? []).filter((row: any) => !String(row.name).startsWith("zz Printful sync test"))
+      .length;
+
+  const [products, links] = await Promise.all([
+    req.swell.get("/products", {
+      [`$app.${req.appId}.sync_product_id`]: { $exists: true },
+      fields: ["name"],
+      limit: 100,
+    }),
+    req.swell.get(`/apps/${req.appId}/sync-variants`, { fields: ["name"], limit: 100 }),
+  ]);
+
+  if (theirs(products) > 0 || theirs(links) > 0) {
+    return (
+      `the store has ${theirs(products)} products and ${theirs(links)} variant links ` +
+      "synced from Printful, which these tests would take off sale; " +
+      "run them against a store with nothing synced from Printful"
+    );
+  }
+}
+
+const synced = available ? await syncedFromPrintful() : undefined;
+const suite = synced
+  ? `product sync against Swell (skipped: ${synced})`
+  : "product sync against Swell";
+
 // Every step makes real Swell API calls; a run that outlives vitest's default
 // timeout keeps going in the background and races the next test.
-describe.skipIf(!available)("product sync against Swell", { timeout: 60000 }, () => {
+describe.skipIf(!available || Boolean(synced))(suite, { timeout: 60000 }, () => {
   const req = createMockRequest({ useRealSwell: true });
   const settings = { api_token: "test-token" };
   let productId: string | undefined;
