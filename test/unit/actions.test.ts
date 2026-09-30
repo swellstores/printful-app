@@ -101,7 +101,7 @@ describe("product-resync", () => {
       categories: "c1",
       $and: [{ id: { $nin: ["p9"] } }],
       where: {
-        $and: [listWhere, { "$app.printful.sync_product_id": { $ne: null } }],
+        $and: [listWhere, { "$app.printful.sync_product_id": { $exists: true } }],
       },
       sort: "$app.printful.date_synced asc",
       limit: 10,

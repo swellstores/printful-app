@@ -31,11 +31,13 @@ async function getProducts(req: SwellRequest, action: any) {
 
   const result = await req.swell.get("/products", {
     ...query,
-    // The selection may hold products that did not come from Printful
+    // The selection may hold products that did not come from Printful.
+    // `$exists`, not `$ne: null`: a query string carries null as the text
+    // "null", which every product is not equal to.
     where: {
       $and: [
         ...(query.where ? [query.where] : []),
-        { [`${field}.sync_product_id`]: { $ne: null } },
+        { [`${field}.sync_product_id`]: { $exists: true } },
       ],
     },
     sort: `${field}.date_synced asc`,

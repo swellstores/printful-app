@@ -1,7 +1,7 @@
 import { PrintfulSettings } from "./lib/settings";
 import { planSync, recordSyncResult, retireRemoved, syncOne } from "./lib/products";
 import { PrintfulError } from "./lib/printful";
-import { releaseLease, takeLease } from "./lib/lease";
+import { ALREADY_RUNNING, releaseLease, takeLease } from "./lib/lease";
 import { toSwellRequest } from "./lib/workflow";
 
 export const config: SwellConfig = {
@@ -24,9 +24,6 @@ const LEASE_SECONDS = 150;
 // for a few minutes before giving up.
 const WAIT_CHECKS = 6;
 const WAIT = "30 seconds";
-
-export const ALREADY_RUNNING =
-  "Another Printful sync is running; try again when it finishes.";
 
 export const LEASE_LOST =
   "Another Printful sync took over while this one was held up, so this one stopped.";

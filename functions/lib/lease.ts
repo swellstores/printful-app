@@ -6,6 +6,13 @@ import { getSettings, putSettings, SyncLease } from "./settings";
  * app settings. It runs out on its own, so a sync that crashes or is stopped
  * never blocks the next one for long.
  */
+// A function is killed at 10s. Its lease outlasts that, so a run killed
+// before it lets go of the lease frees it within a minute.
+export const FUNCTION_LEASE_SECONDS = 60;
+
+export const ALREADY_RUNNING =
+  "Another Printful sync is running; try again when it finishes.";
+
 export function isLive(
   lease: SyncLease | null | undefined,
   now = Date.now(),

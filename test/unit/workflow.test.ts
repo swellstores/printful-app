@@ -14,10 +14,10 @@ vi.mock("../../functions/lib/lease", async (importOriginal) => ({
   releaseLease: vi.fn(),
 }));
 
-import SyncProducts, { ALREADY_RUNNING, LEASE_LOST } from "../../functions/sync-products";
+import SyncProducts, { LEASE_LOST } from "../../functions/sync-products";
 import { toSwellRequest } from "../../functions/lib/workflow";
 import { PrintfulError } from "../../functions/lib/printful";
-import { releaseLease, takeLease } from "../../functions/lib/lease";
+import { ALREADY_RUNNING, releaseLease, takeLease } from "../../functions/lib/lease";
 import {
   planSync,
   recordSyncResult,

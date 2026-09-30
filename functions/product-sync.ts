@@ -1,6 +1,6 @@
 import { getSettings, putSettings } from "./lib/settings";
 import { runProductSync } from "./lib/products";
-import { releaseLease, takeLease } from "./lib/lease";
+import { FUNCTION_LEASE_SECONDS, releaseLease, takeLease } from "./lib/lease";
 
 export const config: SwellConfig = {
   description: "Create and update Swell products from the products designed in Printful",
@@ -10,10 +10,6 @@ export const config: SwellConfig = {
     schedule: "0 * * * *",
   },
 };
-
-// The function is killed at 10s. The lease outlasts that, so a run killed
-// before it lets go of the lease frees it within a minute.
-const LEASE_SECONDS = 60;
 
 export const SKIPPED = "Skipped: another Printful sync was already running.";
 
@@ -28,7 +24,7 @@ export default async function (req: SwellRequest) {
   // both create the same product
   const owner = `cron:${new Date().toISOString()}`;
 
-  if (!(await takeLease(req, owner, LEASE_SECONDS)).taken) {
+  if (!(await takeLease(req, owner, FUNCTION_LEASE_SECONDS)).taken) {
     await putSettings(req, {
       last_sync_at: new Date().toISOString(),
       last_sync_result: SKIPPED,

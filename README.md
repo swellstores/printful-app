@@ -29,7 +29,7 @@ This app has no storefront of its own and needs none. Everything it produces lan
 - **Combinations Printful does not make are switched off.** Swell builds a variant for every color and size combination; the ones Printful does not offer, such as a color that stops at XL, are made inactive.
 - **Prices are copied as numbers.** If your Printful store and your Swell store use different currencies, set the prices in Swell.
 - **Mockups are linked, not copied.** Product photos point at Printful's CDN.
-- **The hourly sync works in batches.** Each hourly run spends a small share of Printful's rate limit, which checkout also uses, and handles new products first, so a large store catches up over several runs. A manual sync handles every new and changed product in one background run, waiting whenever Printful's rate limit is reached. **Resync from Printful** handles up to 10 products per run; run it again to continue. Scripts can start a batch with `swell api post '/functions/printful/product-sync-run'`.
+- **The hourly sync works in batches.** Each hourly run spends a small share of Printful's rate limit, which checkout also uses, and handles new products first, so a large store catches up over several runs. A manual sync handles every new and changed product in one background run, waiting whenever Printful's rate limit is reached. **Resync from Printful** handles up to 10 products per run; run it again to continue. Scripts can start a batch with `swell api post '/functions/printful/product-sync-run'`. Only one sync runs at a time: the hourly sync skips its turn while another is running, a manual sync waits for it, and a script gets a 409 error.
 
 ## What the merchant sees
 
