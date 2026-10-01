@@ -90,9 +90,9 @@ const available = Boolean(env.SWELL_SESSION_ID);
 
 /**
  * The suite runs the real sync against the logged-in store, and a sync takes
- * every product its (faked) Printful listing lacks off sale, and records its
- * result in the app settings. So it only runs on a store with nothing synced
- * from Printful except what an earlier run of this suite left behind.
+ * every product its (faked) Printful listing lacks off sale. So it only runs
+ * on a store with nothing synced from Printful except what an earlier run of
+ * this suite left behind.
  */
 async function syncedFromPrintful(): Promise<string | undefined> {
   const req = createMockRequest({ useRealSwell: true });

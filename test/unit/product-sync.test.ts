@@ -40,17 +40,19 @@ beforeEach(() => {
 });
 
 describe("hourly product sync", () => {
-  it("skips while another sync holds the lease, and says so in the settings", async () => {
+  it("skips while another sync holds the lease", async () => {
     vi.mocked(takeLease).mockResolvedValue({
       taken: false,
       lease: { owner: "wf_1", until: new Date(Date.now() + 60_000).toISOString() },
     });
     const { req, writes } = request();
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
     await productSync(req);
 
     expect(runProductSync).not.toHaveBeenCalled();
-    expect(writes).toEqual([{ last_sync_at: expect.any(String), last_sync_result: SKIPPED }]);
+    expect(writes).toEqual([]);
+    expect(log).toHaveBeenCalledWith("Printful product sync", SKIPPED);
     expect(releaseLease).not.toHaveBeenCalled();
   });
 

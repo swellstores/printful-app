@@ -64,20 +64,6 @@
       "description": "How long to wait for a Printful quote before falling back. The whole function is killed at 10000ms, so keep this below 9000."
     },
     {
-      "id": "last_sync_at",
-      "label": "Last product sync",
-      "type": "datetime",
-      "readonly": true,
-      "description": "When the app last read your Printful products. It runs every hour, and whenever you choose Sync now."
-    },
-    {
-      "id": "last_sync_result",
-      "label": "Last sync result",
-      "type": "long_text",
-      "readonly": true,
-      "description": "What the last sync did, and any errors — for example a token without the 'sync_products' scope."
-    },
-    {
       "id": "sync_now",
       "type": "action",
       "label": "Sync now",

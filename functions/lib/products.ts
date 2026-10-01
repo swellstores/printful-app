@@ -1,5 +1,5 @@
 import Printful, { PrintfulError } from "./printful";
-import { putSettings, PrintfulSettings } from "./settings";
+import { PrintfulSettings } from "./settings";
 
 const LIST_PAGE = 100;
 
@@ -750,7 +750,7 @@ export interface SyncResult {
 
 type SyncTally = Omit<SyncResult, "summary" | "requests_used">;
 
-function summarize(result: SyncTally): string {
+export function summarize(result: SyncTally): string {
   if (!result.listed) {
     return `Could not read your Printful products: ${result.errors.join("; ")}`.slice(
       0,
@@ -772,21 +772,6 @@ function summarize(result: SyncTally): string {
   }
 
   return parts.join(" ").slice(0, 1000);
-}
-
-/** Shows what a sync did in the app settings, and returns that summary. */
-export async function recordSyncResult(
-  req: SwellRequest,
-  result: SyncTally,
-): Promise<string> {
-  const summary = summarize(result);
-
-  await putSettings(req, {
-    last_sync_at: new Date().toISOString(),
-    last_sync_result: summary,
-  });
-
-  return summary;
 }
 
 // A workflow step has minutes rather than seconds, and Printful's rate limit
@@ -929,7 +914,7 @@ export async function runProductSync(
   }
 
   result.requests_used = budget.used;
-  result.summary = await recordSyncResult(req, result);
+  result.summary = summarize(result);
 
   return result;
 }

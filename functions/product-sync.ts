@@ -1,4 +1,4 @@
-import { getSettings, putSettings } from "./lib/settings";
+import { getSettings } from "./lib/settings";
 import { runProductSync } from "./lib/products";
 import { FUNCTION_LEASE_SECONDS, releaseLease, takeLease } from "./lib/lease";
 
@@ -25,10 +25,7 @@ export default async function (req: SwellRequest) {
   const owner = `cron:${new Date().toISOString()}`;
 
   if (!(await takeLease(req, owner, FUNCTION_LEASE_SECONDS)).taken) {
-    await putSettings(req, {
-      last_sync_at: new Date().toISOString(),
-      last_sync_result: SKIPPED,
-    });
+    console.log("Printful product sync", SKIPPED);
     return;
   }
 

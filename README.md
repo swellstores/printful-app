@@ -36,7 +36,6 @@ This app has no storefront of its own and needs none. Everything it produces lan
 - **Printful tab on each order** — Printful order id, status, a link into the Printful dashboard, and the last error if there was one. Orders can be filtered by failed submission from the orders list.
 - **Printful fulfillments** (under Orders) — the submission jobs, with a Failed tab. Retrying a stuck job is a matter of setting its state back to Pending.
 - **Printful tab on each product** — the Printful product it was created from and when it last synced. A **Printful** tab on the products list narrows it to the products synced from Printful.
-- **Last product sync** (in the app settings) — when the sync last ran and what it did, including errors such as a token without the `sync_products` scope, with a **Sync now** button.
 - **Actions** — **Sync products now** in the app page's Actions menu; **Sync from Printful** in the Products Actions menu; **Resync from Printful** on a product page and for products selected in the list.
 
 ## Configuration
@@ -49,7 +48,6 @@ This app has no storefront of its own and needs none. Everything it produces lan
 | Fallback service name | What that rate is called at checkout. |
 | Quote cache lifetime | How long a quote is reused for the same destination and cart. Printful allows 120 requests a minute across everything the app does, so this is what keeps checkout inside the budget. |
 | Rate request timeout | How long to wait for a quote before falling back. The function itself is killed at 10 seconds. |
-| Last product sync / Last sync result | Written by the sync after every run. Read-only. |
 
 ## Things worth knowing
 

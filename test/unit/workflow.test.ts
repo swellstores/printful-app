@@ -5,7 +5,6 @@ vi.mock("../../functions/lib/products", async (importOriginal) => ({
   planSync: vi.fn(),
   syncOne: vi.fn(),
   retireRemoved: vi.fn(),
-  recordSyncResult: vi.fn(),
 }));
 
 vi.mock("../../functions/lib/lease", async (importOriginal) => ({
@@ -18,12 +17,7 @@ import SyncProducts from "../../functions/sync-products";
 import { LEASE_LOST, toSwellRequest } from "../../functions/lib/workflow";
 import { PrintfulError } from "../../functions/lib/printful";
 import { ALREADY_RUNNING, releaseLease, takeLease } from "../../functions/lib/lease";
-import {
-  planSync,
-  recordSyncResult,
-  retireRemoved,
-  syncOne,
-} from "../../functions/lib/products";
+import { planSync, retireRemoved, syncOne } from "../../functions/lib/products";
 
 /** Runs every step straight away and records its name, and each sleep's. */
 function fakeStep() {
@@ -69,7 +63,6 @@ beforeEach(() => {
   vi.mocked(planSync).mockReset();
   vi.mocked(syncOne).mockReset();
   vi.mocked(retireRemoved).mockReset().mockResolvedValue(0);
-  vi.mocked(recordSyncResult).mockReset().mockResolvedValue("summary");
   vi.mocked(takeLease).mockReset().mockResolvedValue({ taken: true });
   vi.mocked(releaseLease).mockReset().mockResolvedValue(undefined);
 });
@@ -93,19 +86,12 @@ describe("sync-products workflow", () => {
       "Sync Tee (1 of 2)",
       "Sync Tee (2 of 2)",
       "Take removed products off sale",
-      "Save the sync result",
       "Release the sync lease",
     ]);
-    expect(vi.mocked(recordSyncResult).mock.calls[0][1]).toEqual({
-      products: 3,
-      created: 1,
-      updated: 1,
-      retired: 0,
-      complete: true,
-      listed: true,
-      errors: [],
+    // The run's own message, which the Runs tab and the finish notice show
+    expect(result).toEqual({
+      message: "3 Printful products: 1 created, 1 updated, 0 taken off sale.",
     });
-    expect(result).toEqual({ message: "summary" });
   });
 
   it("holds the lease for the run, renews it before each product and lets go of it", async () => {
@@ -123,16 +109,14 @@ describe("sync-products workflow", () => {
     expect(vi.mocked(releaseLease).mock.calls[0][1]).toBe("wf_1");
   });
 
-  it("records a product that fails and carries on", async () => {
+  it("reports a product that fails and carries on", async () => {
     vi.mocked(planSync).mockResolvedValue({ listed: [1], queue: [TEE] });
     vi.mocked(syncOne).mockRejectedValue(new Error("2 variant(s) could not be matched"));
     const { step } = fakeStep();
 
-    await new SyncProducts().run(workflowRequest({ api_token: "t" }), step);
+    const result = await new SyncProducts().run(workflowRequest({ api_token: "t" }), step);
 
-    expect(vi.mocked(recordSyncResult).mock.calls[0][1].errors).toEqual([
-      "Tee: 2 variant(s) could not be matched",
-    ]);
+    expect(result.message).toContain("Errors: Tee: 2 variant(s) could not be matched");
   });
 
   it("lets Printful's rate limit reach the step so it is retried, and lets go of the lease", async () => {
@@ -146,20 +130,13 @@ describe("sync-products workflow", () => {
     expect(releaseLease).toHaveBeenCalledTimes(1);
   });
 
-  it("fails the run, and says why in the settings, when Printful cannot be read", async () => {
+  it("fails the run, saying why, when Printful cannot be read", async () => {
     vi.mocked(planSync).mockRejectedValue(new Error("The access token provided is invalid."));
-    vi.mocked(recordSyncResult).mockResolvedValue(
-      "Could not read your Printful products: The access token provided is invalid.",
-    );
     const { step } = fakeStep();
 
     await expect(
       new SyncProducts().run(workflowRequest({ api_token: "t" }), step),
     ).rejects.toThrow("Could not read your Printful products: The access token provided is invalid.");
-    expect(vi.mocked(recordSyncResult).mock.calls[0][1]).toMatchObject({
-      listed: false,
-      errors: ["The access token provided is invalid."],
-    });
     expect(syncOne).not.toHaveBeenCalled();
     expect(releaseLease).toHaveBeenCalledTimes(1);
   });
@@ -171,7 +148,9 @@ describe("sync-products workflow", () => {
 
     await expect(
       new SyncProducts().run(workflowRequest({ api_token: "t" }), step),
-    ).resolves.toEqual({ message: "summary" });
+    ).resolves.toEqual({
+      message: "0 Printful products: 0 created, 0 updated, 0 taken off sale.",
+    });
   });
 
   it("asks for a token before reading Printful", async () => {

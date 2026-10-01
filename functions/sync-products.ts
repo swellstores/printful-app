@@ -1,4 +1,4 @@
-import { planSync, recordSyncResult, retireRemoved, syncOne } from "./lib/products";
+import { planSync, retireRemoved, summarize, syncOne } from "./lib/products";
 import {
   attempt,
   LEASE_LOST,
@@ -50,11 +50,7 @@ export default class SyncProducts {
         tally.listed = false;
         tally.errors.push(plan.error as string);
 
-        const summary = await step.do("Save the sync result", () =>
-          recordSyncResult(req, tally),
-        );
-
-        throw new Error(summary);
+        throw new Error(summarize(tally));
       }
 
       const { listed, queue } = plan.value;
@@ -90,11 +86,7 @@ export default class SyncProducts {
         retireRemoved(req, listed),
       );
 
-      const summary = await step.do("Save the sync result", () =>
-        recordSyncResult(req, tally),
-      );
-
-      return { message: summary };
+      return { message: summarize(tally) };
     } finally {
       await letGoOfLease(step, req, owner);
     }

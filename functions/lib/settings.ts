@@ -5,8 +5,6 @@ export interface PrintfulSettings {
   fallback_service_name?: string;
   quote_cache_ttl?: number;
   rate_timeout_ms?: number;
-  last_sync_at?: string;
-  last_sync_result?: string;
   sync_lease?: SyncLease | null;
 }
 
