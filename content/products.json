@@ -49,12 +49,12 @@
         {
           "id": "resync_selected",
           "label": "Resync from Printful",
-          "function": "product-resync",
-          "hint": "Re-reads variants from Printful for the selected products.",
-          "loading_label": "Resyncing selected products…",
+          "function": "resync-products",
+          "hint": "Re-reads variants from Printful for the selected products, in the background.",
+          "loading_label": "Starting the resync…",
           "modal": {
             "title": "Resync the selected products?",
-            "description": "Products that did not come from Printful are skipped.",
+            "description": "Runs in the background; products that did not come from Printful are skipped.",
             "submit_label": "Resync",
             "fields": [
               {

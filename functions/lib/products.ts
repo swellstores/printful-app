@@ -953,7 +953,6 @@ export async function resyncProducts(
   req: SwellRequest,
   settings: PrintfulSettings,
   products: any[],
-  options: { replaceImages?: boolean } = {},
 ): Promise<ResyncResult> {
   const printful = new Printful(settings.api_token as string);
 
@@ -993,7 +992,6 @@ export async function resyncProducts(
         budget,
         { id: syncProductId as number, name: product.name },
         state,
-        options,
       );
 
       if (outcome === "retired") {
@@ -1008,4 +1006,112 @@ export async function resyncProducts(
   }
 
   return result;
+}
+
+// Products a bulk resync reads per request while it looks for the selection
+const SELECTION_PAGE = 100;
+
+/**
+ * The Printful products in a bulk selection, oldest-synced first. Ids and
+ * names only, so a workflow step can record them and resync one per step.
+ * `selected` counts the whole selection, Printful's products or not.
+ */
+export async function findSelectedProducts(
+  req: SwellRequest,
+  selection: { count?: number; query?: Record<string, any> },
+): Promise<{ selected: number; products: Array<{ id: string; name: string }> }> {
+  const field = `$app.${req.appId}`;
+  const { query = {} } = selection;
+  const products: Array<{ id: string; name: string }> = [];
+
+  for (let page = 1; ; page++) {
+    const result = await req.swell.get("/products", {
+      ...query,
+      // The selection may hold products that did not come from Printful.
+      // `$exists`, not `$ne: null`: a query string carries null as the text
+      // "null", which every product is not equal to.
+      where: {
+        $and: [
+          ...(query.where ? [query.where] : []),
+          { [`${field}.sync_product_id`]: { $exists: true } },
+        ],
+      },
+      fields: ["name"],
+      sort: `${field}.date_synced asc`,
+      limit: SELECTION_PAGE,
+      page,
+    });
+
+    const rows = result?.results ?? [];
+    products.push(...rows.map((row: any) => ({ id: String(row.id), name: row.name })));
+
+    if (rows.length < SELECTION_PAGE || products.length >= Number(result?.count)) {
+      break;
+    }
+  }
+
+  return { selected: Number(selection.count) || products.length, products };
+}
+
+/**
+ * Re-reads one Swell product from Printful, whether or not Printful's list
+ * shows a change; a workflow step's share of a bulk resync. "skipped" when
+ * the product is gone or did not come from Printful.
+ */
+export async function resyncOne(
+  req: SwellRequest,
+  settings: PrintfulSettings,
+  productId: string,
+  options: { replaceImages?: boolean } = {},
+) {
+  const product = await req.swell.get(`/products/${productId}`);
+  const { syncProductId, state } = productState(req, product ?? {});
+
+  if (!syncProductId) {
+    return "skipped";
+  }
+
+  return syncProduct(
+    req,
+    new Printful(settings.api_token as string),
+    unlimited(),
+    { id: syncProductId, name: product.name },
+    state,
+    options,
+  );
+}
+
+function plural(count: number, noun: string) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+/** What a resync did, as the admin shows it when the action finishes. */
+export function describeResync(result: {
+  resynced: number;
+  retired: number;
+  remaining: number;
+  skipped: number;
+  errors: string[];
+}) {
+  const parts = [`Resynced ${plural(result.resynced, "product")} from Printful.`];
+
+  if (result.retired > 0) {
+    parts.push(
+      `${plural(result.retired, "product")} no longer in Printful, taken off sale.`,
+    );
+  }
+
+  if (result.remaining > 0) {
+    parts.push(`${result.remaining} more to go; run it again to continue.`);
+  }
+
+  if (result.skipped > 0) {
+    parts.push(`${plural(result.skipped, "product")} not from Printful, skipped.`);
+  }
+
+  if (result.errors.length > 0) {
+    parts.push(`Errors: ${result.errors.join("; ")}`);
+  }
+
+  return parts.join(" ");
 }

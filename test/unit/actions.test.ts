@@ -38,7 +38,7 @@ describe("product-resync", () => {
     expect(resyncProducts).not.toHaveBeenCalled();
   });
 
-  it("resyncs the product a record action ran on, keeping its photos by default", async () => {
+  it("resyncs the product a record action ran on", async () => {
     vi.mocked(resyncProducts).mockResolvedValue({
       resynced: 1, retired: 0, remaining: 0, skipped: 0, errors: [],
     });
@@ -51,69 +51,6 @@ describe("product-resync", () => {
       message: "Resynced 1 product from Printful.",
     });
     expect(vi.mocked(resyncProducts).mock.calls[0][2]).toEqual([PRINTFUL_PRODUCT]);
-    expect(vi.mocked(resyncProducts).mock.calls[0][3]).toEqual({ replaceImages: false });
-  });
-
-  it("reads the Printful products in a bulk selection, oldest-synced first", async () => {
-    vi.mocked(resyncProducts).mockResolvedValue({
-      resynced: 2, retired: 0, remaining: 1, skipped: 0, errors: [],
-    });
-
-    let productsQuery: any;
-    const listWhere = { active: true };
-
-    // Select all in a filtered list, with one row unchecked: the list's own
-    // query, and a top-level $and that excludes the unchecked row
-    const req = request(
-      {
-        replace_images: true,
-        $action: {
-          id: "resync_selected",
-          source: "bulk",
-          selection: {
-            all: true,
-            except_ids: ["p9"],
-            count: 20,
-            query: {
-              search: "tee",
-              categories: "c1",
-              where: listWhere,
-              $and: [{ id: { $nin: ["p9"] } }],
-            },
-          },
-        },
-      },
-      (url, query) => {
-        if (url.startsWith("/settings/")) return SETTINGS;
-        productsQuery = query;
-        return {
-          count: 15,
-          results: [PRINTFUL_PRODUCT, { ...PRINTFUL_PRODUCT, id: "p3" }, { ...PRINTFUL_PRODUCT, id: "p4" }],
-        };
-      },
-    );
-
-    const { message } = await productResync(req);
-
-    // The list query is kept whole, and only narrowed to Printful products.
-    expect(productsQuery).toEqual({
-      search: "tee",
-      categories: "c1",
-      $and: [{ id: { $nin: ["p9"] } }],
-      where: {
-        $and: [listWhere, { "$app.printful.sync_product_id": { $exists: true } }],
-      },
-      sort: "$app.printful.date_synced asc",
-      limit: 10,
-    });
-    expect(vi.mocked(resyncProducts).mock.calls[0][3]).toEqual({ replaceImages: true });
-
-    // 15 Printful products selected: 2 done, 1 not reached in this batch and
-    // 12 not read yet. 5 of the 20 selected are not from Printful.
-    expect(message).toBe(
-      "Resynced 2 products from Printful. 13 more to go; run it again to continue. " +
-        "5 products not from Printful, skipped.",
-    );
   });
 
   it("fails when nothing could be resynced", async () => {

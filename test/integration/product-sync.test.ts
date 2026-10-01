@@ -3,7 +3,7 @@ import { env } from "cloudflare:test";
 import { createMockRequest } from "../helpers/mock-request";
 import { createSwellClient } from "../helpers/swell-client";
 import { runProductSync } from "../../functions/lib/products";
-import { post as productResync } from "../../functions/product-resync";
+import ResyncProducts from "../../functions/resync-products";
 
 // Runs the real sync against the Swell test environment of the logged-in store,
 // with Printful answered from fixtures. It creates one draft product and
@@ -149,19 +149,38 @@ describe.skipIf(!available || Boolean(synced))(suite, { timeout: 60000 }, () => 
 
   const swell = createSwellClient();
 
-  // The action function reads the app settings itself; the test store has
-  // no Printful token, so those reads are answered here.
-  const run = (data: object) =>
-    productResync(
-      createMockRequest({
-        data: data as SwellData,
+  // Runs the bulk resync workflow against the store, every step straight away.
+  // The test store has no Printful token, so the app settings, and the sync
+  // lease kept in them, are held here rather than in the store.
+  const run = (data: object) => {
+    const stored: Record<string, any> = { ...settings };
+    const isSettings = (url: string) => url.startsWith("/settings/");
+
+    return new ResyncProducts().run(
+      {
+        id: "test",
+        appId: req.appId,
+        store: req.store,
+        data,
+        workflow: { workflow_instance_id: "test-run" },
+        isLocalDev: false,
         swell: {
           ...swell,
           get: (url: string, query?: any) =>
-            url.startsWith("/settings/") ? Promise.resolve(settings) : swell.get(url, query),
+            isSettings(url) ? Promise.resolve({ ...stored }) : swell.get(url, query),
+          put: (url: string, values: any) =>
+            isSettings(url) ? Promise.resolve(Object.assign(stored, values)) : swell.put(url, values),
+          settings: async () => ({ printful: { ...stored } }),
         },
-      }),
+      } as unknown as SwellWorkflowRequest,
+      {
+        do: async (_name: string, optionsOrFn: any, maybeFn?: any) =>
+          (maybeFn ?? optionsOrFn)(),
+        sleep: async () => undefined,
+        sleepUntil: async () => undefined,
+      } as unknown as SwellWorkflowStep,
     );
+  };
 
   afterAll(async () => {
     vi.restoreAllMocks();
