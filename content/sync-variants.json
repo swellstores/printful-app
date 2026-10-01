@@ -62,10 +62,6 @@
   "views": [
     {
       "id": "list",
-      "nav": {
-        "parent": "products",
-        "label": "Printful variants"
-      },
       "query": {
         "sort": "date_synced desc"
       },
