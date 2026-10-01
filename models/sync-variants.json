@@ -2,6 +2,9 @@
   "label": "Printful variants",
   "description": "Links each Swell variant to the Printful variant it was synced from. Written by the product sync; the rate and order paths follow these links.",
   "name_pattern": "{name}",
+  "events": {
+    "enabled": false
+  },
   "fields": {
     "sync_variant_id": {
       "type": "int",
