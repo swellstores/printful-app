@@ -46,8 +46,6 @@ This app has no storefront of its own and needs none. Everything it produces lan
 | Live fulfillment | Off: paid orders become Printful drafts and stop there. On: they are confirmed for production and charged. |
 | Fallback shipping rate | Flat rate offered when Printful is slow or rate-limited. Empty means offer nothing rather than a wrong price. |
 | Fallback service name | What that rate is called at checkout. |
-| Quote cache lifetime | How long a quote is reused for the same destination and cart. Printful allows 120 requests a minute across everything the app does, so this is what keeps checkout inside the budget. |
-| Rate request timeout | How long to wait for a quote before falling back. The function itself is killed at 10 seconds. |
 
 ## Things worth knowing
 
@@ -55,6 +53,7 @@ This app has no storefront of its own and needs none. Everything it produces lan
 - **Printful prints what you designed there.** Orders reference the Printful product variant, so Printful uses the print files stored with your design. Change a design in Printful and later orders print the new version.
 - **Confirmed orders are checked every 10 minutes until they ship.** Shipments and tracking numbers reach the Swell order within about 10 minutes of Printful shipping them. There is nothing to register in Printful.
 - **Print files are validated after confirmation.** An order can be accepted and then fail. The next check marks it failed on the Swell order and emails your store admins; Printful's dashboard shows why it failed.
+- **Checkout quotes are cached and time-boxed.** A quote is reused for 5 minutes for the same destination and cart, and Printful gets 6 seconds to answer before checkout offers the fallback rate instead. Printful allows 120 requests a minute across everything the app does, so the cache is what keeps checkout inside that budget.
 - **Cancellations are reported, not acted on.** If an order is canceled at Printful, the Printful tab on the Swell order shows it. The app does not cancel or refund the Swell order for you.
 
 ## Support

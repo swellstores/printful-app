@@ -44,26 +44,6 @@
       "description": "Name shown at checkout for the fallback rate."
     },
     {
-      "id": "quote_cache_ttl",
-      "label": "Quote cache lifetime",
-      "type": "integer",
-      "default": 300,
-      "min": 0,
-      "max": 3600,
-      "unit": "seconds",
-      "description": "How long a shipping quote is reused for the same destination and cart. Printful allows 120 requests per minute across the whole app, so caching is what keeps checkout inside that budget. Set 0 to disable."
-    },
-    {
-      "id": "rate_timeout_ms",
-      "label": "Rate request timeout",
-      "type": "integer",
-      "default": 6000,
-      "min": 1000,
-      "max": 9000,
-      "unit": "ms",
-      "description": "How long to wait for a Printful quote before falling back. The whole function is killed at 10000ms, so keep this below 9000."
-    },
-    {
       "id": "sync_now",
       "type": "action",
       "label": "Sync now",

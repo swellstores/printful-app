@@ -3,8 +3,6 @@ export interface PrintfulSettings {
   live_fulfillment?: boolean;
   fallback_rate?: number;
   fallback_service_name?: string;
-  quote_cache_ttl?: number;
-  rate_timeout_ms?: number;
   sync_lease?: SyncLease | null;
 }
 
