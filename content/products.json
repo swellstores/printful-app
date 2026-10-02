@@ -35,10 +35,55 @@
             }
           ]
         }
+      ],
+      "extra_actions": [
+        {
+          "id": "sync_now",
+          "label": "Sync from Printful",
+          "function": "sync-products",
+          "hint": "Syncs all your Printful products in the background instead of waiting for the hourly sync.",
+          "loading_label": "Starting the Printful sync…"
+        }
+      ],
+      "bulk_actions": [
+        {
+          "id": "resync_selected",
+          "label": "Resync from Printful",
+          "function": "resync-products",
+          "hint": "Re-reads variants from Printful for the selected products, in the background.",
+          "loading_label": "Starting the resync…",
+          "modal": {
+            "title": "Resync the selected products?",
+            "description": "Runs in the background; products that did not come from Printful are skipped.",
+            "submit_label": "Resync",
+            "fields": [
+              {
+                "id": "replace_images",
+                "label": "Replace photos with Printful mockups",
+                "type": "toggle",
+                "default": false
+              }
+            ]
+          }
+        }
       ]
     },
     {
       "id": "edit",
+      "extra_actions": [
+        {
+          "id": "resync",
+          "label": "Resync from Printful",
+          "function": "product-resync",
+          "hint": "Re-reads this product's variants from Printful.",
+          "loading_label": "Resyncing product…",
+          "conditions": {
+            "$app.printful.sync_product_id": {
+              "$ne": null
+            }
+          }
+        }
+      ],
       "tabs": [
         {
           "id": "printful",

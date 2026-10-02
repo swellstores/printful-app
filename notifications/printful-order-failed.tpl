@@ -32,7 +32,7 @@
     <p class="error">{{ last_error }}</p>
 
     {%- if printful_order_id -%}
-      <p>The Printful order is <a href="https://www.printful.com/dashboard/order/{{ printful_order_id }}">{{ printful_order_id }}</a>. It gave up after {{ attempts }} attempts.</p>
+      <p>The Printful order is <a href="https://www.printful.com/dashboard/order/{{ printful_order_id }}">{{ printful_order_id }}</a>.</p>
     {%- else -%}
       <p>No Printful order was created. The job gave up after {{ attempts }} attempts.</p>
     {%- endif -%}

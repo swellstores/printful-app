@@ -45,9 +45,7 @@ function hash(value: string): string {
 
 /**
  * Identifies the budget a reading belongs to. Printful counts per token, so the
- * token alone is the key: one account-level token used against two Printful
- * store ids spends one budget, and keying by store as well would file the two
- * halves separately and let the app walk into a 429 it could have predicted.
+ * token alone is the key.
  */
 export function rateLimitKey(token: string): string {
   return hash(token);
@@ -81,8 +79,8 @@ function toPrintfulError(response: Response, text: string): PrintfulError {
     const body = JSON.parse(text);
 
     // v2 is inconsistent by endpoint, not by version: shipping rates and some
-    // catalog operations answer with RFC 9457, while order, shipment and
-    // webhook operations still answer with the legacy envelope. Branch on the
+    // catalog operations answer with RFC 9457, while order and shipment
+    // operations still answer with the legacy envelope. Branch on the
     // content type rather than on the path.
     if (contentType.includes("application/problem+json")) {
       message = [body.title, body.detail].filter(Boolean).join(" - ") || message;
@@ -99,8 +97,18 @@ function toPrintfulError(response: Response, text: string): PrintfulError {
     // Non-JSON body (gateway HTML, empty 502) — keep the raw text.
   }
 
+  // Printful's answer to an account-wide token, which would need to be told
+  // which store to use. The app takes store-level tokens only.
+  if (/requires `?store_id/i.test(message)) {
+    message = ACCOUNT_TOKEN_MESSAGE;
+  }
+
   return new PrintfulError(message, response.status, code, retryAfter);
 }
+
+export const ACCOUNT_TOKEN_MESSAGE =
+  "This Printful token is for your whole account. Create a token with access " +
+  "to your Manual order platform / API store only, and paste it in the app settings.";
 
 function withQuery(path: string, query: Record<string, string | number>) {
   const params = new URLSearchParams();
@@ -121,17 +129,17 @@ export interface PrintfulRate {
   max_delivery_days?: number;
 }
 
+/**
+ * Talks to one Printful store. The app requires a store-level token, which
+ * needs no store header: the token itself selects the store.
+ */
 export default class Printful {
   #token: string;
-  #storeId: string | undefined;
   #signal: AbortSignal | undefined;
   #rateLimitKey: string;
 
-  constructor(token: string, storeId?: string, signal?: AbortSignal) {
+  constructor(token: string, signal?: AbortSignal) {
     this.#token = token;
-    // Only account-level tokens accept a store header; sending it with a
-    // store-level token is rejected.
-    this.#storeId = storeId || undefined;
     this.#signal = signal;
     this.#rateLimitKey = rateLimitKey(token);
   }
@@ -141,10 +149,6 @@ export default class Printful {
       Authorization: `Bearer ${this.#token}`,
       Accept: "application/json",
     });
-
-    if (this.#storeId) {
-      headers.set("X-PF-Store-Id", this.#storeId);
-    }
 
     if (body !== undefined) {
       headers.set("Content-Type", "application/json");
@@ -245,16 +249,5 @@ export default class Printful {
       `/v2/orders/${printfulOrderId}/shipments`,
     );
     return result?.data ?? [];
-  }
-
-  /**
-   * Destructive singleton: one webhook configuration exists per token, and
-   * registering replaces the previous one and rotates its key pair. The
-   * `secret_key` in the response is shown once.
-   */
-  async createWebhook(body: object) {
-    const result = await this.request("POST", "/v2/webhooks", body);
-    // Webhook endpoints answer with {code, result, extra}, not {data}.
-    return result?.result ?? result?.data ?? null;
   }
 }

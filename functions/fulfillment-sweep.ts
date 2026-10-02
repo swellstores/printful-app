@@ -16,7 +16,7 @@ export default async function (req: SwellRequest) {
   const collection = `/apps/${req.appId}/fulfillments`;
 
   const overdue = await req.swell.get(collection, {
-    state: { $in: ["pending", "created", "calculating"] },
+    state: { $in: ["pending", "created", "calculating", "confirmed"] },
     date_next_attempt: {
       $lt: new Date(Date.now() - OVERDUE_GRACE_MS).toISOString(),
     },

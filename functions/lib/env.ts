@@ -5,6 +5,19 @@ declare global {
     /** Set by the runtime; not declared in @swell/app-types 1.2.4 yet. */
     isLocalDev: boolean;
   }
+
+  interface SwellFunctionConfig {
+    /**
+     * Runs the function from app actions in the Swell admin, with
+     * `req.data.$action`. Not declared in @swell/app-types 1.2.4 yet.
+     */
+    action?: Record<string, never>;
+  }
+
+  interface SwellWorkflowConfig {
+    /** Starts a run from app actions. Not declared in @swell/app-types 1.2.4 yet. */
+    action?: Record<string, never>;
+  }
 }
 
 /**

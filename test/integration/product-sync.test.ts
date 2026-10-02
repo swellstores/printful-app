@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, afterAll } from "vitest";
 import { env } from "cloudflare:test";
 import { createMockRequest } from "../helpers/mock-request";
+import { createSwellClient } from "../helpers/swell-client";
 import { runProductSync } from "../../functions/lib/products";
+import ResyncProducts from "../../functions/resync-products";
 
 // Runs the real sync against the Swell test environment of the logged-in store,
 // with Printful answered from fixtures. It creates one draft product and
@@ -86,9 +88,44 @@ function mockPrintful() {
 
 const available = Boolean(env.SWELL_SESSION_ID);
 
+/**
+ * The suite runs the real sync against the logged-in store, and a sync takes
+ * every product its (faked) Printful listing lacks off sale. So it only runs
+ * on a store with nothing synced from Printful except what an earlier run of
+ * this suite left behind.
+ */
+async function syncedFromPrintful(): Promise<string | undefined> {
+  const req = createMockRequest({ useRealSwell: true });
+  const theirs = (rows: any) =>
+    (rows?.results ?? []).filter((row: any) => !String(row.name).startsWith("zz Printful sync test"))
+      .length;
+
+  const [products, links] = await Promise.all([
+    req.swell.get("/products", {
+      [`$app.${req.appId}.sync_product_id`]: { $exists: true },
+      fields: ["name"],
+      limit: 100,
+    }),
+    req.swell.get(`/apps/${req.appId}/sync-variants`, { fields: ["name"], limit: 100 }),
+  ]);
+
+  if (theirs(products) > 0 || theirs(links) > 0) {
+    return (
+      `the store has ${theirs(products)} products and ${theirs(links)} variant links ` +
+      "synced from Printful, which these tests would take off sale; " +
+      "run them against a store with nothing synced from Printful"
+    );
+  }
+}
+
+const synced = available ? await syncedFromPrintful() : undefined;
+const suite = synced
+  ? `product sync against Swell (skipped: ${synced})`
+  : "product sync against Swell";
+
 // Every step makes real Swell API calls; a run that outlives vitest's default
 // timeout keeps going in the background and races the next test.
-describe.skipIf(!available)("product sync against Swell", { timeout: 60000 }, () => {
+describe.skipIf(!available || Boolean(synced))(suite, { timeout: 60000 }, () => {
   const req = createMockRequest({ useRealSwell: true });
   const settings = { api_token: "test-token" };
   let productId: string | undefined;
@@ -107,6 +144,41 @@ describe.skipIf(!available)("product sync against Swell", { timeout: 60000 }, ()
     });
     return new Map<string, any>(
       (result?.results ?? []).map((v: any) => [v.name, v]),
+    );
+  };
+
+  const swell = createSwellClient();
+
+  // Runs the bulk resync workflow against the store, every step straight away.
+  // The test store has no Printful token, so the app settings, and the sync
+  // lease kept in them, are held here rather than in the store.
+  const run = (data: object) => {
+    const stored: Record<string, any> = { ...settings };
+    const isSettings = (url: string) => url.startsWith("/settings/");
+
+    return new ResyncProducts().run(
+      {
+        id: "test",
+        appId: req.appId,
+        store: req.store,
+        data,
+        workflow: { workflow_instance_id: "test-run" },
+        isLocalDev: false,
+        swell: {
+          ...swell,
+          get: (url: string, query?: any) =>
+            isSettings(url) ? Promise.resolve({ ...stored }) : swell.get(url, query),
+          put: (url: string, values: any) =>
+            isSettings(url) ? Promise.resolve(Object.assign(stored, values)) : swell.put(url, values),
+          settings: async () => ({ printful: { ...stored } }),
+        },
+      } as unknown as SwellWorkflowRequest,
+      {
+        do: async (_name: string, optionsOrFn: any, maybeFn?: any) =>
+          (maybeFn ?? optionsOrFn)(),
+        sleep: async () => undefined,
+        sleepUntil: async () => undefined,
+      } as unknown as SwellWorkflowStep,
     );
   };
 
@@ -157,6 +229,74 @@ describe.skipIf(!available)("product sync against Swell", { timeout: 60000 }, ()
     expect(
       rows.every((row: any) => [...variants.values()].some((v) => v.id === row.variant_id)),
     ).toBe(true);
+  });
+
+  it("resyncs selected products, replacing photos only when asked", async () => {
+    // Two rows checked in an unfiltered list, as the admin sends them: the
+    // list's own query, narrowed to the checked rows by a top-level $and.
+    // One of the two is not a Printful product.
+    const selection = {
+      all: false,
+      ids: [productId, "000000000000000000000000"],
+      count: 2,
+      query: {
+        where: {},
+        $and: [{ id: { $in: [productId, "000000000000000000000000"] } }],
+      },
+    };
+    const photos = async () =>
+      ((await req.swell.get(`/products/${productId}`))?.images ?? []).map(
+        (image: any) => image.file.url,
+      );
+
+    await req.swell.put(`/products/${productId}`, {
+      $set: { images: [{ file: { url: "https://cdn.example.com/merchant.jpg" } }] },
+    });
+
+    await expect(
+      run({ $action: { id: "resync_selected", source: "bulk", selection } }),
+    ).resolves.toEqual({
+      message:
+        "Resynced 1 product from Printful. 1 product not from Printful, skipped.",
+    });
+    expect(await photos()).toEqual(["https://cdn.example.com/merchant.jpg"]);
+
+    await run({
+      replace_images: true,
+      $action: { id: "resync_selected", source: "bulk", selection },
+    });
+    expect(await photos()).toEqual([
+      "https://files.cdn.printful.com/files/test/Black.png",
+      "https://files.cdn.printful.com/files/test/White.png",
+    ]);
+  });
+
+  it("resyncs every row of a select-all selection except the unchecked ones", async () => {
+    // Select all in a list filtered to the test product. The admin adds an
+    // id condition only when rows were unchecked after selecting all.
+    const selectAll = (exceptIds: string[]) => ({
+      all: true,
+      count: 1 - exceptIds.length,
+      except_ids: exceptIds,
+      query: {
+        where: { name: NAME },
+        ...(exceptIds.length > 0 && { $and: [{ id: { $nin: exceptIds } }] }),
+      },
+    });
+
+    await expect(
+      run({ $action: { id: "resync_selected", source: "bulk", selection: selectAll([]) } }),
+    ).resolves.toEqual({ message: "Resynced 1 product from Printful." });
+
+    await expect(
+      run({
+        $action: {
+          id: "resync_selected",
+          source: "bulk",
+          selection: selectAll([productId as string]),
+        },
+      }),
+    ).rejects.toThrow("None of these products came from Printful.");
   });
 
   it("takes a variant removed in Printful off sale", async () => {

@@ -1,6 +1,6 @@
 {
   "label": "Printful fulfillments",
-  "description": "Durable job that carries one paid Swell order through Printful create, cost calculation and confirmation. One row per order. order_id is unique, which is a read-then-write check rather than a database index — it collapses ordinary duplicate deliveries but leaves a residual race under true concurrency.",
+  "description": "Durable job that carries one paid Swell order through Printful create, cost calculation, confirmation and shipment tracking. One row per order. order_id is unique, which is a read-then-write check rather than a database index — it collapses ordinary duplicate deliveries but leaves a residual race under true concurrency.",
   "name_pattern": "{external_id}",
   "fields": {
     "order_id": {
@@ -24,11 +24,15 @@
       "enum": ["pending", "created", "calculating", "confirmed", "failed"],
       "default": "pending",
       "required": true,
-      "description": "pending: claimed, nothing sent. created: draft exists at Printful. calculating: waiting on Printful costs. confirmed: submitted for production — this is the charge point. failed: needs an operator"
+      "description": "pending: claimed, nothing sent. created: draft exists at Printful. calculating: waiting on Printful costs. confirmed: submitted for production — this is the charge point — and checked for shipments until Printful ships or cancels it. failed: needs an operator"
     },
     "printful_order_id": {
       "type": "string",
       "description": "Set once the Printful draft exists or has been adopted"
+    },
+    "printful_status": {
+      "type": "string",
+      "description": "Latest Printful order status seen while tracking, so the Swell order is only written when it changes"
     },
     "attempts": {
       "type": "int",

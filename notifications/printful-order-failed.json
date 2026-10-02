@@ -13,9 +13,9 @@
     "order_id": "5f8f8c1b2c3d4e5f60718293",
     "external_id": "5f8f8c1b2c3d4e5f60718293",
     "state": "failed",
-    "attempts": 8,
+    "attempts": 0,
     "printful_order_id": "9876543",
-    "last_error": "Print file could not be validated: image resolution is below the minimum for this placement.",
+    "last_error": "Printful rejected this order. Open it in the Printful dashboard to see why.",
     "order": {
       "id": "5f8f8c1b2c3d4e5f60718293",
       "number": "100042"

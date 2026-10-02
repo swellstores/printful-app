@@ -11,8 +11,14 @@ import {
   writeQuote,
 } from "./lib/rates";
 
-const DEFAULT_TIMEOUT_MS = 6000;
-const DEFAULT_CACHE_TTL = 300;
+// How long a quote may take before the fallback rate is offered instead. The
+// platform kills the function at 10s, so this leaves time to answer.
+const TIMEOUT_MS = 6000;
+
+// How long a quote is reused for the same destination and cart, in seconds.
+// Printful allows 120 requests a minute across the whole app, so caching is
+// what keeps checkout inside that budget.
+const CACHE_TTL = 300;
 
 // Below this many requests left in the current window, serve the fallback
 // rather than risk a 429 and the 60s lockout that follows it.
@@ -43,7 +49,7 @@ function fallbackServices(settings: PrintfulSettings): ShippingService[] {
 }
 
 export default async function (req: SwellRequest) {
-  // The configured timeout is the budget for the whole invocation, not just the
+  // The timeout is the budget for the whole invocation, not just the
   // Printful call: the settings and link reads below spend part of it, and
   // the platform kills the function at 10s whether or not the fallback has been
   // returned. Measuring from here keeps the abort ahead of that kill.
@@ -95,7 +101,7 @@ export default async function (req: SwellRequest) {
       rateItems,
     );
 
-    const cached = readQuote(key, settings.quote_cache_ttl ?? DEFAULT_CACHE_TTL);
+    const cached = readQuote(key, CACHE_TTL);
     if (cached) {
       return { shipment_rating: { services: [...preserved, ...cached] } };
     }
@@ -109,7 +115,7 @@ export default async function (req: SwellRequest) {
     }
 
     const remainingMs =
-      startedAt + (settings.rate_timeout_ms ?? DEFAULT_TIMEOUT_MS) - Date.now();
+      startedAt + TIMEOUT_MS - Date.now();
 
     if (remainingMs <= 0) {
       return rated(preserved, fallbackServices(settings), {
@@ -122,11 +128,7 @@ export default async function (req: SwellRequest) {
     const timer = setTimeout(() => controller.abort(), remainingMs);
 
     try {
-      const printful = new Printful(
-        settings.api_token,
-        settings.store_id,
-        controller.signal,
-      );
+      const printful = new Printful(settings.api_token, controller.signal);
 
       const response = await printful.getShippingRates({
         recipient,

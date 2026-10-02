@@ -2,10 +2,7 @@ import { env } from "cloudflare:test";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
-type BasicSwellClient = Pick<
-  SwellAPI,
-  "get" | "post" | "put" | "delete" | "settings" | "transaction"
->;
+type BasicSwellClient = Pick<SwellAPI, "get" | "post" | "put" | "delete" | "settings">;
 
 async function makeRequest(
   method: HttpMethod,
@@ -44,15 +41,13 @@ async function makeRequest(
     if (method === "GET") {
       const params = new URLSearchParams();
 
+      // Encodes the way the functions runtime does: arrays by index, and null
+      // as the string "null" (`{ $ne: null }` must survive the query string).
       function append(prefix: string, value: any) {
-        if (value === null || value === undefined) return;
-        if (typeof value === "object" && !Array.isArray(value)) {
+        if (value === undefined) return;
+        if (value !== null && typeof value === "object") {
           for (const [k, v] of Object.entries(value)) {
             append(`${prefix}[${k}]`, v);
-          }
-        } else if (Array.isArray(value)) {
-          for (const v of value) {
-            append(`${prefix}[]`, v);
           }
         } else {
           params.append(prefix, String(value));
@@ -110,9 +105,6 @@ export function createSwellClient(): BasicSwellClient {
     },
     delete(url: string, data?: any) {
       return makeRequest("DELETE", url, data);
-    },
-    transaction(ops: Array<{ method: string; url: string; data?: any }>) {
-      return makeRequest("POST", "/:transaction", ops);
     },
     settings(id?: string) {
       const appId = id || env.SWELL_APP_ID;
