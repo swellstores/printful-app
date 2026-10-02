@@ -18,6 +18,7 @@
 	"support_url": "https://www.printful.com/contact",
 	"documentation_url": "https://developers.printful.com/docs/",
 	"price": 0,
+	"price_external": true,
 	"images": [
 		{
 			"id": "paid-order-to-tracking",
