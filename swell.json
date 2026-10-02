@@ -15,7 +15,6 @@
 			"description": "Live Printful shipping rates for print-on-demand items, with a configurable flat-rate fallback."
 		}
 	],
-	"support_url": "https://www.printful.com/contact",
 	"documentation_url": "https://developers.printful.com/docs/",
 	"price": 0,
 	"price_external": true,
