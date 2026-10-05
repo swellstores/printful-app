@@ -19,7 +19,7 @@
     {
       "id": "api_token",
       "label": "Printful API token",
-      "type": "text",
+      "type": "secret",
       "description": "Private token from Printful Settings → Developers with access to your Manual order platform / API store only; account-wide tokens are not supported. Needs the 'orders' and 'sync_products' scopes. Use a separate token for your test environment."
     },
     {
