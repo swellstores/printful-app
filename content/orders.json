@@ -80,6 +80,18 @@
     },
     {
       "id": "edit",
+      "extra_actions": [
+        {
+          "id": "recheck",
+          "label": "Recheck in Printful",
+          "function": "order-recheck",
+          "hint": "Checks Printful again for an order it marked failed, and tracks it again if it was fixed there.",
+          "loading_label": "Checking Printful…",
+          "conditions": {
+            "$app.printful.submit_state": "failed"
+          }
+        }
+      ],
       "tabs": [
         {
           "id": "printful",

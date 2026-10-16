@@ -34,7 +34,8 @@ This app has no storefront of its own and needs none. Everything it produces lan
 ## What the merchant sees
 
 - **Printful tab on each order** — Printful order id, status, a link into the Printful dashboard, and the last error if there was one. Orders can be filtered by failed submission from the orders list.
-- **Printful fulfillments** (under Orders) — the submission jobs, with a Failed tab. Retrying a stuck job is a matter of setting its state back to Pending.
+- **Printful fulfillments** (under Orders) — the submission jobs, with a Failed tab. A job that failed before its Printful order was created is retried by setting its state back to Pending.
+- **Recheck in Printful** — on an order Printful marked failed. A failed order is no longer checked, so if you fix it in Printful (pay for it, or replace its print files), this checks it again and, once Printful accepts it, tracks it until it ships. Don't set such a job back to Pending: that creates a second Printful order.
 - **Printful tab on each product** — the Printful product it was created from and when it last synced. A **Printful** tab on the products list narrows it to the products synced from Printful.
 - **Actions** — **Sync products now** in the app page's Actions menu; **Sync from Printful** in the Products Actions menu; **Resync from Printful** on a product page and for products selected in the list.
 
