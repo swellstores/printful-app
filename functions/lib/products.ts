@@ -337,6 +337,15 @@ export function planVariants(input: {
 }
 
 /**
+ * The Swell id an external id carries, bare or after a prefix such as
+ * `swell:`, the way integrations that copy Swell products into Printful
+ * often write it.
+ */
+export function swellIdIn(externalId?: string): string | undefined {
+  return String(externalId ?? "").match(/(?:^|[^0-9a-f])([0-9a-f]{24})$/i)?.[1];
+}
+
+/**
  * Compares option values across naming habits: case, spacing, inch marks and
  * the times sign, so Printful's 12″×16″ matches a Swell value of 12x16.
  */
@@ -426,13 +435,15 @@ export function planLinkedVariants(input: {
   for (const variant of input.printful) {
     const link = linkBySync.get(Number(variant.id));
     const linkedTo = link?.variant_id ? String(link.variant_id) : undefined;
-    const named = variant.external_id ? String(variant.external_id) : undefined;
+    const named = [variant.external_id, swellIdIn(variant.external_id)]
+      .map((id) => (id ? String(id) : undefined))
+      .find((id) => id && swellIds.has(id));
 
     let target: string | null | undefined;
 
     if (linkedTo && swellIds.has(linkedTo)) {
       target = linkedTo;
-    } else if (named && swellIds.has(named)) {
+    } else if (named) {
       target = named;
     } else if (input.variants.length === 0) {
       target = input.printful.length === 1 ? null : undefined;
@@ -904,15 +915,16 @@ function markLinked(req: SwellRequest, productId: string, syncProductId: number)
 /**
  * Links the Swell product a Printful product's external id names, when it
  * exists and is not linked yet. A Printful product made from a Swell product,
- * by another integration or by hand, often carries that product's id.
+ * by another integration or by hand, often carries that product's id; see
+ * `swellIdIn`.
  */
 async function adoptByExternalId(
   req: SwellRequest,
   summary: SyncProductSummary,
 ): Promise<SwellProductState | undefined> {
-  const id = String(summary.external_id ?? "");
+  const id = swellIdIn(summary.external_id);
 
-  if (!/^[0-9a-f]{24}$/i.test(id)) {
+  if (!id) {
     return undefined;
   }
 

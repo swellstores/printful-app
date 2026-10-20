@@ -12,6 +12,7 @@ import {
   normalizeValue,
   parsePrintfulId,
   planLinkedVariants,
+  swellIdIn,
   syncOne,
   SyncVariant,
 } from "../../functions/lib/products";
@@ -204,6 +205,15 @@ describe("parsePrintfulId", () => {
       123456789,
     );
     expect(parsePrintfulId("sunset print")).toBeNull();
+  });
+});
+
+describe("swellIdIn", () => {
+  it("reads a Swell id bare or after a prefix, and nothing else", () => {
+    expect(swellIdIn(PRINT_ID)).toBe(PRINT_ID);
+    expect(swellIdIn(`swell:${PRINT_ID}`)).toBe(PRINT_ID);
+    expect(swellIdIn("PRINT-12x16")).toBeUndefined();
+    expect(swellIdIn(undefined)).toBeUndefined();
   });
 });
 
@@ -429,6 +439,37 @@ describe("syncing a Printful product no Swell product is linked to", () => {
       sync_variant_count: 2,
     });
     expect(store.links).toHaveLength(2);
+  });
+
+  it("links a product copied into Printful by another integration, variant by variant", async () => {
+    // Product external id "swell:{product id}", each variant's the Swell variant id
+    const ids = ["64b0c0ffee00000000000001", "64b0c0ffee00000000000002", "64b0c0ffee00000000000003"];
+    const print = merchantPrint();
+    print.options[0].values = [
+      { id: "s1", name: "12×16" },
+      { id: "s2", name: "18×24" },
+      { id: "s3", name: "24×36" },
+    ];
+    print.variants = print.variants.map((variant, i) => ({ ...variant, id: ids[i] }));
+    mockPrintful([
+      size(101, "12″×16″", { external_id: ids[0] }),
+      size(102, "18″×24″", { external_id: ids[1] }),
+      size(103, "24″×36″", { external_id: ids[2] }),
+    ]);
+    const store = fakeStore([print]);
+    const req = createMockRequest({ swell: store.swell });
+
+    const outcome = await syncOne(req, { api_token: "token", product_source: "swell" }, {
+      summary: { id: 900, external_id: `swell:${PRINT_ID}`, name: "Sunset Print", variants: 3 },
+    });
+
+    expect(outcome).toBe("linked");
+    expect(store.links.map((link) => [link.sync_variant_id, link.variant_id])).toEqual([
+      [101, ids[0]],
+      [102, ids[1]],
+      [103, ids[2]],
+    ]);
+    expect(store.products[0].variants.every((variant: any) => variant.active)).toBe(true);
   });
 
   it("creates nothing, and asks Printful nothing, when products start in Swell", async () => {

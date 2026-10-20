@@ -34,7 +34,7 @@ This app has no storefront of its own and needs none. Everything it produces lan
 ## Products that already exist in Swell
 
 - **Start in Swell.** Set **Products start in** to **Swell** and the app never creates products. It links the ones you already have instead.
-- **Linked by external ID.** A Printful product whose external ID is a Swell product's ID is linked to that product at the next sync. Integrations that copied Swell products into Printful often set it.
+- **Linked by external ID.** A Printful product whose external ID is a Swell product's ID, bare or after a prefix such as `swell:`, is linked to that product at the next sync. Integrations that copied Swell products into Printful often set it, and the same goes for each variant's external ID.
 - **Or link each product yourself.** On a product page, choose **Actions → Link to Printful product** and enter the Printful product's ID or its link in the Printful dashboard. Leave it empty to use the Printful product with the same name.
 - **Design once in Printful.** Upload the print file to the Printful product and set its placement there. Every order for the linked Swell product is printed from it, whatever photos the Swell product shows.
 - **Variants are matched, not changed.** Each Printful variant is linked to the Swell variant its external ID names, or else the one whose option values match its color and size: 12″×16″ matches 12x16. The sync never changes a linked product's options, prices, names or photos. A Printful variant that matches no Swell variant is reported, and orders for a Swell variant with no Printful variant are not sent to Printful. A product without variants is linked as a whole to a Printful product with one variant.
