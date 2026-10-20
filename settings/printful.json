@@ -30,6 +30,23 @@
       "description": "When off, paid orders are submitted to Printful as drafts and never confirmed, so nothing is printed or charged. Turn this on only after a draft order looks correct in the Printful dashboard."
     },
     {
+      "id": "product_source",
+      "label": "Products start in",
+      "type": "select",
+      "default": "printful",
+      "options": [
+        {
+          "label": "Printful: create a draft in Swell for each product designed there",
+          "value": "printful"
+        },
+        {
+          "label": "Swell: link my existing Swell products to their Printful products",
+          "value": "swell"
+        }
+      ],
+      "description": "Choose Swell if your products already exist here. The app then never creates products: a Printful product whose external ID is a Swell product's ID is linked automatically, and you link the others from each product's Actions menu."
+    },
+    {
       "id": "fallback_rate",
       "label": "Fallback shipping rate",
       "type": "currency",

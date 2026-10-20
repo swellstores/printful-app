@@ -82,6 +82,49 @@
               "$ne": null
             }
           }
+        },
+        {
+          "id": "link",
+          "label": "Link to Printful product",
+          "function": "product-link",
+          "hint": "Prints orders for this product from a product you designed in Printful.",
+          "loading_label": "Linking to Printful…",
+          "modal": {
+            "title": "Link to a Printful product",
+            "description": "Orders for this product are printed from the Printful product's design. The product's name, description, prices and photos stay as they are.",
+            "submit_label": "Link",
+            "fields": [
+              {
+                "id": "printful_product",
+                "label": "Printful product ID or link",
+                "type": "text",
+                "description": "Leave empty to use the Printful product with this product's name."
+              }
+            ]
+          },
+          "conditions": {
+            "$app.printful.sync_product_id": {
+              "$empty": true
+            }
+          }
+        },
+        {
+          "id": "unlink",
+          "label": "Unlink from Printful",
+          "function": "product-link",
+          "hint": "Stops sending orders for this product to Printful.",
+          "loading_label": "Unlinking…",
+          "modal": {
+            "title": "Unlink from Printful?",
+            "description": "Orders for this product will no longer be sent to Printful. The product itself stays as it is.",
+            "submit_label": "Unlink",
+            "fields": []
+          },
+          "conditions": {
+            "$app.printful.linked": {
+              "$eq": true
+            }
+          }
         }
       ],
       "tabs": [

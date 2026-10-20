@@ -35,6 +35,8 @@ export default class SyncProducts {
       const tally = {
         products: 0,
         created: 0,
+        linked: 0,
+        unlinked: 0,
         updated: 0,
         retired: 0,
         complete: true,
@@ -77,6 +79,8 @@ export default class SyncProducts {
         }
 
         if (outcome.value === "created") tally.created++;
+        if (outcome.value === "linked") tally.linked++;
+        if (outcome.value === "unlinked") tally.unlinked++;
         if (outcome.value === "updated") tally.updated++;
         if (outcome.value === "retired") tally.retired++;
         if (outcome.error) tally.errors.push(`${name}: ${outcome.error}`);

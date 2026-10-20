@@ -1,6 +1,7 @@
 export interface PrintfulSettings {
   api_token?: string;
   live_fulfillment?: boolean;
+  product_source?: "printful" | "swell";
   fallback_rate?: number;
   fallback_service_name?: string;
   sync_lease?: SyncLease | null;

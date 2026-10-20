@@ -3,7 +3,7 @@
   "fields": {
     "sync_product_id": {
       "type": "int",
-      "description": "Printful product this Swell product was created from"
+      "description": "Printful product this Swell product was created from or linked to"
     },
     "sync_variant_count": {
       "type": "int",
@@ -12,6 +12,10 @@
     "date_synced": {
       "type": "date",
       "description": "When this product last matched Printful"
+    },
+    "linked": {
+      "type": "bool",
+      "description": "The merchant made this product in Swell and linked it to Printful. The sync then only links its variants, and never changes its options, prices or photos"
     }
   }
 }

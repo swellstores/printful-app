@@ -12,7 +12,7 @@ This app has no storefront of its own and needs none. Everything it produces lan
 
 1. **Design your products in Printful.** In Printful, add a store of the *Manual order platform / API* type, then add products to it with Printful's design tools: pick a product, place your artwork, generate mockups and set your retail prices.
 2. **Create a Printful token.** In Printful, go to Settings → Developers and create a private token with access to that store only, with the `orders` and `sync_products` scopes. Account-wide tokens are not supported.
-3. **Paste it into the app.** In Swell, open Apps → Printful → Settings and enter the token.
+3. **Paste it into the app.** In Swell, open Apps → Printful → Settings and enter the token. If your products already exist in Swell, also set **Products start in** to **Swell** before syncing; see [Products that already exist in Swell](#products-that-already-exist-in-swell).
 4. **Enable the carrier.** Go to Settings → Shipping. The Printful row appears there. Toggle it on and click **Save changes**.
 
    This step is not optional and installing the app does not do it for you. Until the carrier row is saved as enabled, Swell never asks the app for rates and checkout silently shows only your native shipping services.
@@ -31,13 +31,23 @@ This app has no storefront of its own and needs none. Everything it produces lan
 - **Mockups are linked, not copied.** Product photos point at Printful's CDN.
 - **The hourly sync works in batches.** Each hourly run spends a small share of Printful's rate limit, which checkout also uses, and handles new products first, so a large store catches up over several runs. A manual sync handles every new and changed product in one background run, waiting whenever Printful's rate limit is reached. **Resync from Printful** on products selected in the list runs in the background too, one product at a time. Scripts can start a batch with `swell api post '/functions/printful/product-sync-run'`. Only one sync runs at a time: the hourly sync skips its turn while another is running, a manual sync waits for it, and a script gets a 409 error.
 
+## Products that already exist in Swell
+
+- **Start in Swell.** Set **Products start in** to **Swell** and the app never creates products. It links the ones you already have instead.
+- **Linked by external ID.** A Printful product whose external ID is a Swell product's ID is linked to that product at the next sync. Integrations that copied Swell products into Printful often set it.
+- **Or link each product yourself.** On a product page, choose **Actions → Link to Printful product** and enter the Printful product's ID or its link in the Printful dashboard. Leave it empty to use the Printful product with the same name.
+- **Design once in Printful.** Upload the print file to the Printful product and set its placement there. Every order for the linked Swell product is printed from it, whatever photos the Swell product shows.
+- **Variants are matched, not changed.** Each Printful variant is linked to the Swell variant its external ID names, or else the one whose option values match its color and size: 12″×16″ matches 12x16. The sync never changes a linked product's options, prices, names or photos. A Printful variant that matches no Swell variant is reported, and orders for a Swell variant with no Printful variant are not sent to Printful. A product without variants is linked as a whole to a Printful product with one variant.
+- **Removed in Printful, off sale in Swell.** If a linked variant or product is removed from Printful, the Swell variant or product is taken off sale, because Printful can no longer make it.
+- **Unlink** with **Actions → Unlink from Printful**. If **Products start in** is **Printful**, the next sync then creates that Printful product in Swell as a new draft.
+
 ## What the merchant sees
 
 - **Printful tab on each order** — Printful order id, status, a link into the Printful dashboard, and the last error if there was one. Orders can be filtered by failed submission from the orders list.
 - **Printful fulfillments** (under Orders) — the submission jobs, with a Failed tab. A job that failed before its Printful order was created is retried by setting its state back to Pending.
 - **Recheck in Printful** — on an order Printful marked failed. A failed order is no longer checked, so if you fix it in Printful (pay for it, or replace its print files), this checks it again and, once Printful accepts it, tracks it until it ships. Don't set such a job back to Pending: that creates a second Printful order.
-- **Printful tab on each product** — the Printful product it was created from and when it last synced. A **Printful** tab on the products list narrows it to the products synced from Printful.
-- **Actions** — **Sync products now** in the app page's Actions menu; **Sync from Printful** in the Products Actions menu; **Resync from Printful** on a product page and for products selected in the list.
+- **Printful tab on each product** — the Printful product it was created from or linked to, and when it last synced. A **Printful** tab on the products list narrows it to the products synced from Printful.
+- **Actions** — **Sync products now** in the app page's Actions menu; **Sync from Printful** in the Products Actions menu; **Resync from Printful** on a product page and for products selected in the list; **Link to Printful product** and **Unlink from Printful** on a product page.
 
 ## Configuration
 
@@ -45,6 +55,7 @@ This app has no storefront of its own and needs none. Everything it produces lan
 | --- | --- |
 | Printful API token | Private token from Printful Settings → Developers with access to your Manual order platform / API store only. Use a separate token for your test environment. |
 | Live fulfillment | Off: paid orders become Printful drafts and stop there. On: they are confirmed for production and charged. |
+| Products start in | Printful: each product designed in Printful becomes a draft in Swell. Swell: your products already exist in Swell, and the app links them instead of creating any. |
 | Fallback shipping rate | Flat rate offered when Printful is slow or rate-limited. Empty means offer nothing rather than a wrong price. |
 | Fallback service name | What that rate is called at checkout. |
 

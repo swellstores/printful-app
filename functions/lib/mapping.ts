@@ -5,12 +5,21 @@ export interface SwellItem {
   quantity?: number;
 }
 
-/** A Swell variant linked to the Printful variant it was synced from. */
+/**
+ * A Swell variant linked to the Printful variant it was synced from. A Swell
+ * product without variants is linked as a whole, with no `variant_id`.
+ */
 export interface VariantLink {
   id: string;
-  variant_id: string;
+  product_id?: string;
+  variant_id?: string;
   sync_variant_id: number;
   catalog_variant_id: number;
+}
+
+/** Where an item's link is found: its variant, or its product when it has none. */
+export function linkKey(item: { product_id?: string; variant_id?: string | null }) {
+  return item.variant_id ? String(item.variant_id) : `product:${item.product_id}`;
 }
 
 export interface RateItem {
@@ -19,7 +28,7 @@ export interface RateItem {
   quantity: number;
 }
 
-/** Printful links for the variants in a cart, keyed by Swell variant id. */
+/** Printful links for the items in a cart or order, keyed by `linkKey`. */
 export async function getVariantLinks(
   req: SwellRequest,
   items: SwellItem[],
@@ -27,23 +36,46 @@ export async function getVariantLinks(
   const variantIds = [
     ...new Set(items.map((item) => item.variant_id).filter(Boolean)),
   ];
+  const productIds = [
+    ...new Set(
+      items.filter((item) => !item.variant_id).map((item) => item.product_id).filter(Boolean),
+    ),
+  ];
+  const fields = ["product_id", "variant_id", "sync_variant_id", "catalog_variant_id"];
+  const collection = `/apps/${req.appId}/sync-variants`;
 
-  if (variantIds.length === 0) {
-    return new Map();
+  const [byVariant, byProduct] = await Promise.all([
+    variantIds.length > 0
+      ? req.swell.get(collection, {
+          variant_id: { $in: variantIds },
+          limit: variantIds.length,
+          fields,
+        })
+      : null,
+    // A product's own variants are linked one by one, so only a link with no
+    // variant stands for the whole product
+    productIds.length > 0
+      ? req.swell.get(collection, {
+          product_id: { $in: productIds },
+          limit: 1000,
+          fields,
+        })
+      : null,
+  ]);
+
+  const links = new Map<string, VariantLink>();
+
+  for (const row of (byVariant?.results ?? []) as VariantLink[]) {
+    links.set(String(row.variant_id), row);
   }
 
-  const result = await req.swell.get(`/apps/${req.appId}/sync-variants`, {
-    variant_id: { $in: variantIds },
-    limit: variantIds.length,
-    fields: ["variant_id", "sync_variant_id", "catalog_variant_id"],
-  });
+  for (const row of (byProduct?.results ?? []) as VariantLink[]) {
+    if (!row.variant_id) {
+      links.set(linkKey(row), row);
+    }
+  }
 
-  return new Map(
-    (result?.results ?? []).map((row: VariantLink) => [
-      String(row.variant_id),
-      row,
-    ]),
-  );
+  return links;
 }
 
 /**
@@ -57,7 +89,7 @@ export function toRateItems(
   const rateItems: RateItem[] = [];
 
   for (const item of items) {
-    const link = links.get(String(item.variant_id));
+    const link = links.get(linkKey(item));
 
     if (link) {
       rateItems.push({
@@ -84,7 +116,7 @@ export function toOrderItems(
   const orderItems = [];
 
   for (const item of items) {
-    const link = links.get(String(item.variant_id));
+    const link = links.get(linkKey(item));
 
     if (link) {
       orderItems.push({

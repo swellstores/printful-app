@@ -19,6 +19,7 @@ const MAX_ROWS = 1000;
 
 export interface SyncVariant {
   id: number;
+  external_id?: string;
   name?: string;
   variant_id?: number;
   retail_price?: string;
@@ -33,13 +34,14 @@ export interface SyncVariant {
 
 export interface SyncProductSummary {
   id: number;
+  external_id?: string;
   name?: string;
   variants?: number;
   is_ignored?: boolean;
 }
 
 export interface SyncProductDetail {
-  sync_product: { id: number; name?: string; thumbnail_url?: string };
+  sync_product: { id: number; external_id?: string; name?: string; thumbnail_url?: string };
   sync_variants: SyncVariant[];
 }
 
@@ -218,7 +220,8 @@ export interface VariantPlan {
     price?: number;
     sku?: string;
   }>;
-  linkUpserts: Array<{ id?: string; variant: SyncVariant; variantId: string }>;
+  /** `variantId` is null where a product without variants is linked as a whole */
+  linkUpserts: Array<{ id?: string; variant: SyncVariant; variantId: string | null }>;
   linkDeletes: string[];
   unmatched: SyncVariant[];
 }
@@ -333,6 +336,147 @@ export function planVariants(input: {
   return plan;
 }
 
+/**
+ * Compares option values across naming habits: case, spacing, inch marks and
+ * the times sign, so Printful's 12″×16″ matches a Swell value of 12x16.
+ */
+export function normalizeValue(value: string): string {
+  return String(value)
+    .toLowerCase()
+    .replace(/[″"“”'′]/g, "")
+    .replace(/(\d)\s*(?:inches|inch|in)\b/g, "$1")
+    .replace(/×/g, "x")
+    .replace(/\s+/g, "");
+}
+
+/**
+ * Decides the links for a product the merchant made in Swell and linked to
+ * Printful. Its options, variants, prices and photos are the merchant's, so
+ * none of them change. Each Printful variant is linked to the Swell variant
+ * it was linked to before, the one its external id names, or the one whose
+ * option values match its color and size; a Swell product without variants is
+ * linked as a whole to a Printful product with one variant. Only a variant
+ * whose Printful variant is gone is taken off sale, as it can no longer be
+ * fulfilled.
+ */
+export function planLinkedVariants(input: {
+  printful: SyncVariant[];
+  options: SwellOption[];
+  variants: SwellVariant[];
+  links: LinkRow[];
+}): VariantPlan {
+  const plan: VariantPlan = {
+    variantUpdates: [],
+    linkUpserts: [],
+    linkDeletes: [],
+    unmatched: [],
+  };
+
+  const swellIds = new Set(input.variants.map((variant) => String(variant.id)));
+  const valueNames = new Map<string, string>();
+
+  for (const option of input.options) {
+    for (const value of option.values ?? []) {
+      if (value.id) {
+        valueNames.set(String(value.id), normalizeValue(value.name));
+      }
+    }
+  }
+
+  const valuesOf = (variant: SwellVariant) =>
+    new Set(
+      (variant.option_value_ids ?? [])
+        .map((id) => valueNames.get(String(id)))
+        .filter(Boolean) as string[],
+    );
+
+  const claimed = new Set<string>();
+
+  // Color and size together first, then each alone, as a Swell product may
+  // sell only one of Printful's colors under its sizes
+  const byValues = (variant: SyncVariant) => {
+    const color = variant.color && normalizeValue(variant.color);
+    const size = variant.size && normalizeValue(variant.size);
+
+    for (const wanted of [[color, size], [size], [color]]) {
+      if (!wanted.every(Boolean)) {
+        continue;
+      }
+
+      const matches = input.variants.filter((candidate) => {
+        const values = valuesOf(candidate);
+        return (
+          !claimed.has(String(candidate.id)) &&
+          wanted.every((value) => values.has(value as string))
+        );
+      });
+
+      if (matches.length === 1) {
+        return String(matches[0].id);
+      }
+    }
+
+    return undefined;
+  };
+
+  const linkBySync = new Map(
+    input.links.map((link) => [Number(link.sync_variant_id), link]),
+  );
+
+  for (const variant of input.printful) {
+    const link = linkBySync.get(Number(variant.id));
+    const linkedTo = link?.variant_id ? String(link.variant_id) : undefined;
+    const named = variant.external_id ? String(variant.external_id) : undefined;
+
+    let target: string | null | undefined;
+
+    if (linkedTo && swellIds.has(linkedTo)) {
+      target = linkedTo;
+    } else if (named && swellIds.has(named)) {
+      target = named;
+    } else if (input.variants.length === 0) {
+      target = input.printful.length === 1 ? null : undefined;
+    } else {
+      target = byValues(variant);
+    }
+
+    const key = target ?? "product";
+
+    if (target === undefined || claimed.has(key)) {
+      plan.unmatched.push(variant);
+      continue;
+    }
+
+    claimed.add(key);
+    plan.linkUpserts.push({ id: link?.id, variant, variantId: target });
+  }
+
+  const kept = new Set(plan.linkUpserts.map(({ variant }) => Number(variant.id)));
+  const sellableIds = new Set(input.printful.map((variant) => Number(variant.id)));
+  const offSale = new Set<string>();
+
+  for (const link of input.links) {
+    if (!link.id || kept.has(Number(link.sync_variant_id))) {
+      continue;
+    }
+
+    plan.linkDeletes.push(link.id);
+
+    if (!sellableIds.has(Number(link.sync_variant_id)) && link.variant_id) {
+      const variant = input.variants.find(
+        (candidate) => String(candidate.id) === String(link.variant_id),
+      );
+
+      if (variant && variant.active !== false && !offSale.has(String(variant.id))) {
+        offSale.add(String(variant.id));
+        plan.variantUpdates.push({ id: variant.id, active: false });
+      }
+    }
+  }
+
+  return plan;
+}
+
 interface Budget {
   used: number;
   limit: number;
@@ -349,6 +493,8 @@ export interface SwellProductState {
   options?: SwellOption[];
   sync_variant_count?: number;
   date_synced?: string;
+  /** Made by the merchant in Swell and linked, rather than created from Printful */
+  linked?: boolean;
 }
 
 async function listSyncProducts(printful: Printful, budget: Budget) {
@@ -390,11 +536,12 @@ function productState(req: SwellRequest, product: any) {
       options: product.options,
       sync_variant_count: values.sync_variant_count,
       date_synced: values.date_synced,
+      linked: values.linked === true,
     } as SwellProductState,
   };
 }
 
-/** Swell products already created from Printful, keyed by Printful product id. */
+/** Swell products linked to Printful products, keyed by Printful product id. */
 async function getLinkedProducts(
   req: SwellRequest,
   syncProductIds: number[],
@@ -542,8 +689,21 @@ async function syncProduct(
   budget: Budget,
   summary: SyncProductSummary,
   existing: SwellProductState | undefined,
-  options: { replaceImages?: boolean } = {},
-): Promise<"created" | "updated" | "retired" | "skipped"> {
+  options: { replaceImages?: boolean; createProducts?: boolean } = {},
+): Promise<"created" | "linked" | "updated" | "retired" | "skipped" | "unlinked"> {
+  let adopted = false;
+
+  if (!existing) {
+    existing = await adoptByExternalId(req, summary);
+    adopted = Boolean(existing);
+  }
+
+  // The merchant's products already exist in Swell, so a Printful product no
+  // Swell product names waits to be linked
+  if (!existing && options.createProducts === false) {
+    return "unlinked";
+  }
+
   budget.used++;
   let detail: SyncProductDetail | null;
 
@@ -576,7 +736,8 @@ async function syncProduct(
   }
 
   let product: any = existing;
-  let dims: Dimension[];
+  let dims: Dimension[] = [];
+  const linked = Boolean(existing?.linked);
 
   if (!product) {
     dims = chooseDimensions(variants);
@@ -608,7 +769,7 @@ async function syncProduct(
       images: mockupImages(detail).map((url) => ({ file: { url } })),
       ...req.appValues({ sync_product_id: syncProductId }),
     });
-  } else {
+  } else if (!linked) {
     dims = dimensionsFromOptions(product.options);
 
     if (dims.length === 0) {
@@ -635,14 +796,21 @@ async function syncProduct(
     existing ? getLinks(req, { sync_product_id: syncProductId }) : [],
   ]);
 
-  const plan = planVariants({
-    dims,
-    printful: variants,
-    options: product.options ?? [],
-    variants: swellVariants?.results ?? [],
-    links,
-    productPrice: product.price ?? null,
-  });
+  const plan = linked
+    ? planLinkedVariants({
+        printful: variants,
+        options: product.options ?? [],
+        variants: swellVariants?.results ?? [],
+        links,
+      })
+    : planVariants({
+        dims,
+        printful: variants,
+        options: product.options ?? [],
+        variants: swellVariants?.results ?? [],
+        links,
+        productPrice: product.price ?? null,
+      });
 
   // Before the links: a variant is only set up (price, SKU, switched on) while
   // it is still unlinked, so a run cut off after linking must not have skipped
@@ -662,7 +830,7 @@ async function syncProduct(
         sync_product_id: syncProductId,
         catalog_variant_id: Number(variant.variant_id),
         product_id: product.id,
-        variant_id: variantId,
+        variant_id: variantId ?? undefined,
         name: variant.name,
         size: variant.size,
         color: variant.color,
@@ -699,10 +867,23 @@ async function syncProduct(
     `/products/${product.id}`,
     req.appValues({
       sync_product_id: syncProductId,
+      ...(linked ? { linked: true } : {}),
       sync_variant_count: summary.variants ?? detail.sync_variants.length,
       date_synced,
     }),
   );
+
+  if (plan.unmatched.length > 0 && linked) {
+    const names = plan.unmatched.map(
+      (variant) =>
+        [variant.color, variant.size].filter(Boolean).join(" ") || variant.name || variant.id,
+    );
+
+    throw new Error(
+      `${plural(plan.unmatched.length, "Printful variant")} matched no Swell variant ` +
+        `(${names.join(", ")}), so orders for them can't be sent to Printful`,
+    );
+  }
 
   if (plan.unmatched.length > 0) {
     throw new Error(
@@ -710,7 +891,40 @@ async function syncProduct(
     );
   }
 
-  return existing ? "updated" : "created";
+  return adopted ? "linked" : existing ? "updated" : "created";
+}
+
+function markLinked(req: SwellRequest, productId: string, syncProductId: number) {
+  return req.swell.put(
+    `/products/${productId}`,
+    req.appValues({ sync_product_id: syncProductId, linked: true }),
+  );
+}
+
+/**
+ * Links the Swell product a Printful product's external id names, when it
+ * exists and is not linked yet. A Printful product made from a Swell product,
+ * by another integration or by hand, often carries that product's id.
+ */
+async function adoptByExternalId(
+  req: SwellRequest,
+  summary: SyncProductSummary,
+): Promise<SwellProductState | undefined> {
+  const id = String(summary.external_id ?? "");
+
+  if (!/^[0-9a-f]{24}$/i.test(id)) {
+    return undefined;
+  }
+
+  const product = await req.swell.get(`/products/${id}`);
+
+  if (!product?.id || productState(req, product).syncProductId) {
+    return undefined;
+  }
+
+  await markLinked(req, product.id, Number(summary.id));
+
+  return { ...productState(req, product).state, linked: true };
 }
 
 /** Products that disappeared from Printful, found through their links. */
@@ -738,6 +952,10 @@ async function retireMissing(req: SwellRequest, listed: Set<number>) {
 export interface SyncResult {
   products: number;
   created: number;
+  /** Existing Swell products linked to their Printful products */
+  linked?: number;
+  /** Printful products left for the merchant to link, when nothing is created */
+  unlinked?: number;
   updated: number;
   retired: number;
   requests_used: number;
@@ -762,6 +980,17 @@ export function summarize(result: SyncTally): string {
     `${result.products} Printful products: ${result.created} created, ` +
       `${result.updated} updated, ${result.retired} taken off sale.`,
   ];
+
+  if (result.linked) {
+    parts.push(`Linked ${plural(result.linked, "existing Swell product")}.`);
+  }
+
+  if (result.unlinked) {
+    parts.push(
+      `${plural(result.unlinked, "Printful product")} not linked to a Swell product yet; ` +
+        "link them from each Swell product's Actions menu.",
+    );
+  }
 
   if (!result.complete) {
     parts.push("More to sync; the next run continues.");
@@ -804,7 +1033,12 @@ export async function planSync(
   return {
     listed: products.map((product) => Number(product.id)),
     queue: prioritize(products, state).queue.map((product) => ({
-      summary: { id: product.id, name: product.name, variants: product.variants },
+      summary: {
+        id: product.id,
+        external_id: product.external_id,
+        name: product.name,
+        variants: product.variants,
+      },
       existing: state.get(Number(product.id)),
     })),
   };
@@ -822,6 +1056,7 @@ export function syncOne(
     unlimited(),
     product.summary,
     product.existing,
+    { createProducts: settings.product_source !== "swell" },
   );
 }
 
@@ -888,9 +1123,12 @@ export async function runProductSync(
           budget,
           product,
           state.get(Number(product.id)),
+          { createProducts: settings.product_source !== "swell" },
         );
 
         if (outcome === "created") result.created++;
+        if (outcome === "linked") result.linked = (result.linked ?? 0) + 1;
+        if (outcome === "unlinked") result.unlinked = (result.unlinked ?? 0) + 1;
         if (outcome === "updated") result.updated++;
         if (outcome === "retired") result.retired++;
       } catch (err) {
@@ -1099,4 +1337,166 @@ export function describeResync(result: {
   }
 
   return parts.join(" ");
+}
+
+/**
+ * A Printful product id from what a merchant pastes: the id itself, or a
+ * Printful dashboard link that carries it.
+ */
+export function parsePrintfulId(input: string): number | null {
+  const match = String(input).match(/[?&]id=(\d+)/) ?? String(input).match(/(\d+)\D*$/);
+  const id = match ? Number(match[1]) : NaN;
+
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+/** The Printful product a merchant means: by id or link, or else by name. */
+async function findPrintfulProduct(
+  printful: Printful,
+  input: string | undefined,
+  name: string,
+): Promise<SyncProductSummary> {
+  if (input?.trim()) {
+    const id = parsePrintfulId(input);
+
+    if (!id) {
+      throw new Error(`"${input.trim()}" is not a Printful product ID or link.`);
+    }
+
+    try {
+      const detail = await printful.getSyncProduct(id);
+
+      return {
+        id,
+        external_id: detail?.sync_product?.external_id,
+        name: detail?.sync_product?.name,
+        variants: detail?.sync_variants?.length,
+      };
+    } catch (err) {
+      if (err instanceof PrintfulError && err.status === 404) {
+        throw new Error(`Printful has no product ${id} in the store your token is for.`);
+      }
+      throw err;
+    }
+  }
+
+  const { products } = await listSyncProducts(printful, unlimited());
+  const wanted = String(name ?? "").trim().toLowerCase();
+  const matches = products.filter(
+    (product) => !product.is_ignored && String(product.name ?? "").trim().toLowerCase() === wanted,
+  );
+
+  if (matches.length === 1) {
+    return matches[0];
+  }
+
+  throw new Error(
+    matches.length === 0
+      ? `No Printful product is named "${name}". Enter its Printful product ID or link instead.`
+      : `${matches.length} Printful products are named "${name}". Enter the ID or link of the one to use.`,
+  );
+}
+
+/**
+ * Links a product the merchant made in Swell to a Printful product, then
+ * links its variants. Orders for it are printed from the Printful product's
+ * design from then on; nothing about the Swell product itself changes.
+ */
+export async function linkProduct(
+  req: SwellRequest,
+  settings: PrintfulSettings,
+  productId: string,
+  input?: string,
+): Promise<string> {
+  const printful = new Printful(settings.api_token as string);
+  const product = productId ? await req.swell.get(`/products/${productId}`) : null;
+
+  if (!product?.id) {
+    throw new Error("This product no longer exists.");
+  }
+
+  const current = productState(req, product);
+
+  if (current.syncProductId) {
+    throw new Error(`This product is already linked to Printful product ${current.syncProductId}.`);
+  }
+
+  const summary = await findPrintfulProduct(printful, input, product.name);
+  const label = summary.name ? `"${summary.name}"` : String(summary.id);
+
+  if ((await getLinkedProducts(req, [Number(summary.id)])).has(Number(summary.id))) {
+    throw new Error(`The Printful product ${label} is already linked to another Swell product.`);
+  }
+
+  await markLinked(req, product.id, Number(summary.id));
+
+  let problem = "";
+
+  try {
+    await syncProduct(req, printful, unlimited(), summary, {
+      ...current.state,
+      linked: true,
+    });
+  } catch (err) {
+    problem = ` ${err instanceof Error ? err.message : String(err)}.`;
+  }
+
+  const [links, variants] = await Promise.all([
+    getLinks(req, { product_id: product.id }),
+    req.swell.get(`/products/${product.id}/variants`, {
+      archived: { $ne: true },
+      limit: 1,
+    }),
+  ]);
+  const count = Number(variants?.count) || 0;
+
+  if (count === 0) {
+    return `Linked to the Printful product ${label}.${problem}`;
+  }
+
+  return (
+    `Linked to the Printful product ${label}: ${links.length} of ${plural(count, "variant")} linked.` +
+    problem
+  );
+}
+
+/**
+ * Undoes `linkProduct`. A product created from Printful stays linked: without
+ * its link, the next sync would create it again.
+ */
+export async function unlinkProduct(req: SwellRequest, productId: string): Promise<string> {
+  const product = productId ? await req.swell.get(`/products/${productId}`) : null;
+  const { syncProductId, state } = productState(req, product ?? {});
+
+  if (!product?.id || !syncProductId) {
+    throw new Error("This product isn't linked to Printful.");
+  }
+
+  if (!state.linked) {
+    throw new Error(
+      "This product was created from Printful, so it stays linked. To stop selling it, delete or ignore it in Printful.",
+    );
+  }
+
+  const links = await getLinks(req, { product_id: product.id });
+
+  await runOps(
+    req,
+    links.map((link: any) => ({
+      method: "delete" as const,
+      url: `/apps/${req.appId}/sync-variants/${link.id}`,
+    })),
+  );
+
+  await req.swell.put(
+    `/products/${product.id}`,
+    req.appValues({
+      sync_product_id: null,
+      linked: null,
+      sync_variant_count: null,
+      date_synced: null,
+    }),
+  );
+
+  return "Unlinked from Printful. Orders for this product are no longer sent to Printful.";
 }
