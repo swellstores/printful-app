@@ -4,7 +4,7 @@
 	"name": "Printful",
 	"support_email": "support@swell.is",
 	"type": "integration",
-	"version": "1.0.5",
+	"version": "1.0.6",
 	"permissions": [],
 	"extensions": [
 		{
