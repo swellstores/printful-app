@@ -1,7 +1,14 @@
 {
   "label": "Printful",
-  "description": "1. In Printful, add a Manual order platform / API store and design your products in it. 2. Open Settings → Developers and create a private token with access to that store only (not your whole account), with the 'orders' and 'sync_products' scopes. 3. Paste it below and save, then choose Actions → Sync products now. Your products arrive in Swell as drafts to review, and an hourly sync keeps them up to date. 4. Enable the carrier in Settings → Shipping → Printful, then click Save changes — rates do not dispatch until you do. 5. Leave Live fulfillment off until you have inspected a draft order in the Printful dashboard.",
+  "description": "1. In Printful, add a Manual order platform / API store and design your products in it. 2. Open Settings → Developers and create a private token with access to that store only (not your whole account), with the 'orders' and 'sync_products' scopes. 3. Paste it below and save, then choose Actions → Test connection to check it, and Actions → Sync products now. Your products arrive in Swell as drafts to review, and an hourly sync keeps them up to date. 4. Enable the carrier in Settings → Shipping → Printful, then click Save changes — rates do not dispatch until you do. 5. Leave Live fulfillment off until you have inspected a draft order in the Printful dashboard.",
   "actions": [
+    {
+      "id": "test_connection",
+      "label": "Test connection",
+      "function": "test-connection",
+      "loading_label": "Testing…",
+      "hint": "Checks the API token, its scopes and its store with Printful"
+    },
     {
       "id": "sync_now",
       "label": "Sync products now",
@@ -20,6 +27,7 @@
       "id": "api_token",
       "label": "Printful API token",
       "type": "secret",
+      "required": true,
       "description": "Private token from Printful Settings → Developers with access to your Manual order platform / API store only; account-wide tokens are not supported. Needs the 'orders' and 'sync_products' scopes. Use a separate token for your test environment."
     },
     {
